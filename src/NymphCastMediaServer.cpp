@@ -19,22 +19,24 @@
 #include <nymph/nymph.h>
 
 #include "config_parser.h"
+#include "INIReader.h"
 #include "sarge.h"
-
 #include "nyansd.h"
-
+#include "mimetype.h"
 
 #include <Poco/Condition.h>
 #include <Poco/Thread.h>
-
 using namespace Poco;
 
+#include <filesystem> 		// C++17
+namespace fs = std::filesystem;
 
 
 
 // Global objects.
 Condition gCon;
 Mutex gMutex;
+NymphArray* media_files = new NymphArray();
 // ---
 
 
@@ -88,6 +90,7 @@ int main(int argc, char** argv) {
 	Sarge sarge;
 	sarge.setArgument("h", "help", "Get this help message.", false);
 	sarge.setArgument("c", "configuration", "Path to configuration file.", true);
+	sarge.setArgument("f", "folders", "Path to folder list file.", true);
 	sarge.setArgument("v", "version", "Output the NymphCast version and exit.", false);
 	sarge.setDescription("NymphCast Media Server. Shares files with NymphCast clients. More details: http://nyanko.ws/nymphcast.php.");
 	sarge.setUsage("nc_mediaserver <options>");
@@ -105,19 +108,70 @@ int main(int argc, char** argv) {
 	}
 	
 	std::string config_file;
-	if (!sarge.getFlag("configuration", config_file)) {
-		std::cerr << "No configuration file provided in command line arguments." << std::endl;
-		return 1;
+	sarge.getFlag("configuration", config_file);
+	
+	std::string folders_file = "folders.ini";
+	if (!sarge.getFlag("folders", folders_file)) {
+		std::cerr << "Folder list file argument is required." << std::endl;
+		sarge.printHelp();
+		return 0;
 	}
 	
 	// Read in the configuration.
-	IniParser config;
+	// TODO: no exposed configuration options yet.
+	/* IniParser config;
 	if (!config.load(config_file)) {
 		std::cerr << "Unable to load configuration file: " << config_file << std::endl;
 		return 1;
+	} */
+	//is_full_screen = config.getValue<bool>("fullscreen", false);
+	
+	// Obtain the list of directories to scan.
+	INIReader folderList(folders_file);
+	if (folderList.ParseError() != 0) {
+		std::cerr << "Failed to parse the '" << folders_file << "' file." << std::endl;
+		return false;
 	}
 	
-	//is_full_screen = config.getValue<bool>("fullscreen", false);
+	std::set<std::string> sections = folderList.Sections();
+	std::cout << "Found " << sections.size() << " sections in the folder list." << std::endl;
+	std::set<std::string>::const_iterator it;
+	for (it = sections.cbegin(); it != sections.cend(); ++it) {
+		// Read out each 'path' string and add the files in the folder (if it exists) to the
+		// central list.
+		std::string path = folderList.Get(*it, "path", "");
+		if (path.empty()) {
+			std::cerr << "Path was missing or empty for entry: " << *it << std::endl;
+			continue;
+		}
+		
+		// Check that path is a valid directory.
+		fs::path dir = path;
+		if (!fs::is_directory(dir)) {
+			std::cout << "Path is not a valid directory: " << path << ". Skipping." << std::endl;
+			continue;
+		}
+		
+		// Iterate through the directory to filter out the media files.
+		NymphArray* file_list = new NymphArray();
+		for (fs::recursive_directory_iterator next(dir); next != fs::end(next); next++) {
+			fs::path fe = next->path();
+			std::cout << "Checking path: " << fe.string() << std::endl;
+			if (!fs::is_regular_file(fe)) { 
+				std::cout << "Not a regular file." << std::endl;
+				continue; 
+			}
+			
+			std::string ext = fe.extension().string();
+			ext.erase(0, 1);	// Remove leading '.' character.
+			std::cout << "Checking extension: " << ext << std::endl;
+			if (MimeType::hasExtension(ext)) {
+				// Add to media file list.
+				//file_list->addValue(new Nymph
+				std::cout << "Adding file: " << fe << std::endl;
+			}
+		}
+	}
 	
 	// Initialise the server.
 	std::cout << "Initialising server...\n";
