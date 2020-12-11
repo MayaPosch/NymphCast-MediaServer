@@ -17,6 +17,7 @@
 
 
 #include <nymph/nymph.h>
+#include <nymphcast_client.h>
 
 #include "config_parser.h"
 #include "INIReader.h"
@@ -32,11 +33,19 @@ using namespace Poco;
 namespace fs = std::filesystem;
 
 
+struct MediaFile {
+	fs::path path;
+};
+
 
 // Global objects.
 Condition gCon;
 Mutex gMutex;
 NymphArray* media_files = new NymphArray();
+std::vector<MediaFile> mediaFiles;
+NymphCastClient client;
+uint32_t handle = 0;
+std::string serverip;
 // ---
 
 
@@ -45,42 +54,84 @@ void signal_handler(int signal) {
 }
 
 
-// Callback for the connect function.
-NymphMessage* connectClient(int session, NymphMessage* msg, void* data) {
-	std::cout << "Received message for session: " << session << ", msg ID: " << msg->getMessageId() << "\n";
-	
-	std::string clientStr = ((NymphString*) msg->parameters()[0])->getValue();
-	std::cout << "Client string: " << clientStr << "\n";
-	
-	//
-	
-	// Register this client with its ID. Return error if the client ID already exists.
+// array getFileList()
+NymphMessage* getFileList(int session, NymphMessage* msg, void* data) {
 	NymphMessage* returnMsg = msg->getReplyMessage();
 	
-	returnMsg->setResultValue(new NymphBoolean(true));
+	returnMsg->setResultValue(media_files);
 	return returnMsg;
 }
 
 
-// Client disconnects from server.
-// bool disconnect()
-NymphMessage* disconnect(int session, NymphMessage* msg, void* data) {
-	
-	// Remove the client ID from the list.
-	/* std::map<int, CastClient>::iterator it;
-	it = clients.find(session);
-	if (it != clients.end()) {
-		clients.erase(it);
-	} */
-	
+// uint8 playMedia(uint32 id, array receivers)
+// Returns: 0 on success. 1 on error.
+NymphMessage* playMedia(int session, NymphMessage* msg, void* data) {
 	NymphMessage* returnMsg = msg->getReplyMessage();
-	returnMsg->setResultValue(new NymphBoolean(true));
+	
+	// Get the file ID to play back and the list of receivers to play it back on.
+	uint32_t fileId = ((NymphUint32*) msg->parameters()[0])->getValue();
+	std::vector<NymphType*> receivers = ((NymphArray*) msg->parameters()[1])->getValues();
+	
+	// Obtain the file record using its ID.
+	if (fileId > mediaFiles.size()) {
+		// Invalid file ID.
+		returnMsg->setResultValue(new NymphUint8(1));
+		return returnMsg;
+	}
+	
+	MediaFile& mf = mediaFiles[fileId];
+	
+	// Connect to first receiver in the list, then send the remaining receivers as slave receivers.
+	if (receivers.empty()) {
+		// No receivers to connect to.
+		returnMsg->setResultValue(new NymphUint8(1));
+		return returnMsg;
+	}
+	
+	NymphType* sip = 0;
+	((NymphStruct*) receivers[0])->getValue("ipv4", sip);
+	serverip = ((NymphString*) sip)->getValue();
+	receivers.erase(receivers.begin());	// Erase server entry from the list, pass the rest as slaves.
+	if (!client.connectServer(serverip, handle)) {
+		std::cerr << "Failed to connect to server: " << serverip << std::endl;
+		returnMsg->setResultValue(new NymphUint8(1));
+		return returnMsg;
+	}
+	
+	std::vector<NymphCastRemote> slaves;
+	for (int i = 0; i < receivers.size(); ++i) {
+		NymphCastRemote remote;
+		NymphType* value = 0;
+		((NymphStruct*) receivers[i])->getValue("name", value);
+		remote.name = ((NymphString*) value)->getValue();
+		((NymphStruct*) receivers[i])->getValue("ipv4", value);
+		remote.ipv4 = ((NymphString*) value)->getValue();
+		((NymphStruct*) receivers[i])->getValue("ipv6", value);
+		remote.ipv6 = ((NymphString*) value)->getValue();
+		
+		slaves.push_back(remote);
+	}
+	
+	// Set up slaves.
+	if (!receivers.empty()) {
+		client.addSlaves(handle, slaves);
+	}
+	
+	// Initiate playback. We immediately return here if playback start is successful.
+	if (!client.castFile(handle, mf.path.string())) {
+		// Playback failed.
+		std::cerr << "Playback failed for file: " << mf.path.string() << std::endl;
+		returnMsg->setResultValue(new NymphUint8(1));
+		return returnMsg;
+	}
+	
+	returnMsg->setResultValue(new NymphUint8(0));
 	return returnMsg;
 }
 
 
 // --- LOG FUNCTION ---
-void logFunction(int level, std::string logStr) {
+void serverLogFunction(int level, std::string logStr) {
 	std::cout << level << " - " << logStr << std::endl;
 }
 
@@ -127,6 +178,7 @@ int main(int argc, char** argv) {
 	//is_full_screen = config.getValue<bool>("fullscreen", false);
 	
 	// Obtain the list of directories to scan.
+	std::cout << "Scanning directories..." << std::endl;
 	INIReader folderList(folders_file);
 	if (folderList.ParseError() != 0) {
 		std::cerr << "Failed to parse the '" << folders_file << "' file." << std::endl;
@@ -156,7 +208,7 @@ int main(int argc, char** argv) {
 		NymphArray* file_list = new NymphArray();
 		for (fs::recursive_directory_iterator next(dir); next != fs::end(next); next++) {
 			fs::path fe = next->path();
-			std::cout << "Checking path: " << fe.string() << std::endl;
+			//std::cout << "Checking path: " << fe.string() << std::endl;
 			if (!fs::is_regular_file(fe)) { 
 				std::cout << "Not a regular file." << std::endl;
 				continue; 
@@ -164,7 +216,7 @@ int main(int argc, char** argv) {
 			
 			std::string ext = fe.extension().string();
 			ext.erase(0, 1);	// Remove leading '.' character.
-			std::cout << "Checking extension: " << ext << std::endl;
+			//std::cout << "Checking extension: " << ext << std::endl;
 			if (MimeType::hasExtension(ext)) {
 				// Add to media file list.
 				//file_list->addValue(new Nymph
@@ -176,27 +228,26 @@ int main(int argc, char** argv) {
 	// Initialise the server.
 	std::cout << "Initialising server...\n";
 	long timeout = 5000; // 5 seconds.
-	//NymphRemoteClient::init(logFunction, NYMPH_LOG_LEVEL_TRACE, timeout);
-	NymphRemoteClient::init(logFunction, NYMPH_LOG_LEVEL_INFO, timeout);
+	//NymphRemoteClient::init(serverLogFunction, NYMPH_LOG_LEVEL_TRACE, timeout);
+	NymphRemoteClient::init(serverLogFunction, NYMPH_LOG_LEVEL_INFO, timeout);
 	
 	
 	// Define all of the RPC methods we want to export for clients.
 	std::cout << "Registering methods...\n";
 	std::vector<NymphTypes> parameters;
 	
-	// Client connects to server.
-	// bool connect(string client_id)
-	parameters.push_back(NYMPH_STRING);
-	NymphMethod connectFunction("connect", parameters, NYMPH_BOOL);
-	connectFunction.setCallback(connectClient);
-	NymphRemoteClient::registerMethod("connect", connectFunction);
+	// array getFileList()
+	NymphMethod getFileListFunction("getFileList", parameters, NYMPH_ARRAY);
+	getFileListFunction.setCallback(getFileList);
+	NymphRemoteClient::registerMethod("getFileList", getFileListFunction);
 	
-	// Client disconnects from server.
-	// bool disconnect()
+	// uint8 playMedia(uint32 id, array receivers)
 	parameters.clear();
-	NymphMethod disconnectFunction("disconnect", parameters, NYMPH_BOOL);
-	disconnectFunction.setCallback(disconnect);
-	NymphRemoteClient::registerMethod("disconnect", disconnectFunction);
+	parameters.push_back(NYMPH_UINT32);
+	parameters.push_back(NYMPH_ARRAY);
+	NymphMethod playMediaFunction("playMedia", parameters, NYMPH_UINT8);
+	playMediaFunction.setCallback(playMedia);
+	NymphRemoteClient::registerMethod("playMedia", playMediaFunction);
 	
 	// Install signal handler to terminate the server.
 	signal(SIGINT, signal_handler);
@@ -208,7 +259,7 @@ int main(int argc, char** argv) {
 	NYSD_service sv;
 	sv.port = 4004;
 	sv.protocol = NYSD_PROTOCOL_TCP;
-	sv.service = "nymphcast";
+	sv.service = "nymphcast_mediaserver";
 	NyanSD::addService(sv);
 	
 	std::cout << "Starting NyanSD on port 4004 UDP..." << std::endl;
