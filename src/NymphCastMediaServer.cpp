@@ -34,6 +34,7 @@ namespace fs = std::filesystem;
 
 
 struct MediaFile {
+	std::string section;
 	fs::path path;
 };
 
@@ -191,6 +192,7 @@ int main(int argc, char** argv) {
 	for (it = sections.cbegin(); it != sections.cend(); ++it) {
 		// Read out each 'path' string and add the files in the folder (if it exists) to the
 		// central list.
+		std::cout << "Section: " << *it << std::endl;
 		std::string path = folderList.Get(*it, "path", "");
 		if (path.empty()) {
 			std::cerr << "Path was missing or empty for entry: " << *it << std::endl;
@@ -217,10 +219,19 @@ int main(int argc, char** argv) {
 			std::string ext = fe.extension().string();
 			ext.erase(0, 1);	// Remove leading '.' character.
 			//std::cout << "Checking extension: " << ext << std::endl;
+			MediaFile mf;
 			if (MimeType::hasExtension(ext)) {
 				// Add to media file list.
-				//file_list->addValue(new Nymph
 				std::cout << "Adding file: " << fe << std::endl;
+				
+				NymphStruct* f = new NymphStruct();
+				f->addPair("section", new NymphString(*it));
+				f->addPair("filename", new NymphString(fe.filename().string()));
+				media_files->addValue(f);
+				
+				mf.path = fe;
+				mf.section = *it;
+				mediaFiles.push_back(mf);
 			}
 		}
 	}
