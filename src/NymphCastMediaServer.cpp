@@ -188,6 +188,8 @@ int main(int argc, char** argv) {
 	
 	std::set<std::string> sections = folderList.Sections();
 	std::cout << "Found " << sections.size() << " sections in the folder list." << std::endl;
+	
+	uint32_t index = 0;
 	std::set<std::string>::const_iterator it;
 	for (it = sections.cbegin(); it != sections.cend(); ++it) {
 		// Read out each 'path' string and add the files in the folder (if it exists) to the
@@ -225,6 +227,7 @@ int main(int argc, char** argv) {
 				std::cout << "Adding file: " << fe << std::endl;
 				
 				NymphStruct* f = new NymphStruct();
+				f->addPair("id", new NymphUint32(index++));
 				f->addPair("section", new NymphString(*it));
 				f->addPair("filename", new NymphString(fe.filename().string()));
 				media_files->addValue(f);
