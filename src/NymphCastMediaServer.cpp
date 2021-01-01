@@ -59,7 +59,9 @@ void signal_handler(int signal) {
 NymphMessage* getFileList(int session, NymphMessage* msg, void* data) {
 	NymphMessage* returnMsg = msg->getReplyMessage();
 	
-	returnMsg->setResultValue(media_files);
+	NymphArray* tArr = new NymphArray();
+	*tArr = *media_files;
+	returnMsg->setResultValue(tArr);
 	return returnMsg;
 }
 
