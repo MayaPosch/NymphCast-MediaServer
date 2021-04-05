@@ -18,6 +18,8 @@ CFLAGS := $(INCLUDE) -g3 -std=c++17 $(VERSIONINFO)
 ifdef OS
 	CFLAGS := $(CFLAGS) -U__STRICT_ANSI__
 	LIB += -lws2_32
+else
+	LIB += -pthread
 endif
 
 SOURCES := $(wildcard src/*.cpp)
