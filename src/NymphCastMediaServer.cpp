@@ -29,6 +29,7 @@
 #include <Poco/Thread.h>
 using namespace Poco;
 
+#include <csignal>
 #include <filesystem> 		// C++17
 namespace fs = std::filesystem;
 
