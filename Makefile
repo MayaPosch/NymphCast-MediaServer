@@ -1,14 +1,35 @@
 # Makefile for NymphCast-MediaServer (NC-MS)
 
-GCC = g++
+
+# Set platform-specific parameters, either from an external file, or native platform defaults.
+ifdef PLATFORM
+include platforms/$(PLATFORM).mk
+TARGET := $(PLATFORM)
+else
+# Get the compiler's (GCC or Clang) target triplet and use that as platform.
+TARGET := $(shell g++ -dumpmachine)
+$(info TARGET: $(TARGET))
+endif
+
+ifdef TOOLCHAIN
+#include Makefile.$(TARGET)
+include toolchain/$(TOOLCHAIN).mk
+else
+GPP = g++
+GCC = gcc
+STRIP = strip
 MAKEDIR = mkdir -p
 RM = rm
+endif
+
+TARGET_BIN := $(TARGET)/
+
 
 # Include the file with the versioning information ('VERSION' variable).
 include version
 VERSIONINFO = -D__VERSION="\"$(VERSION)\""
 
-OUTPUT := nc_mediaserver
+OUTPUT := nymphcast_mediaserver
 INCLUDE := -Isrc
 LIB := -lnymphcast -lnymphrpc -lPocoNet -lPocoUtil -lPocoFoundation -lPocoJSON -lstdc++fs
 CFLAGS := $(INCLUDE) -g3 -std=c++17 $(VERSIONINFO)
@@ -23,19 +44,21 @@ else
 endif
 
 SOURCES := $(wildcard src/*.cpp)
-OBJECTS := $(addprefix obj/,$(notdir) $(SOURCES:.cpp=.o))
+OBJECTS := $(addprefix obj/$(TARGET_BIN),$(notdir) $(SOURCES:.cpp=.o))
 
-all: makedir bin/$(OUTPUT)
+all: makedir bin/$(TARGET_BIN)$(OUTPUT)
 
 makedir:
-	$(MAKEDIR) obj/src
-	$(MAKEDIR) bin
+	$(MAKEDIR) obj/$(TARGET_BIN)src
+	$(MAKEDIR) bin/$(TARGET)
 
-obj/%.o: %.cpp
-	$(GCC) -c -o $@ $< $(CFLAGS)
+obj/$(TARGET_BIN)%.o: %.cpp
+	$(GPP) -c -o $@ $< $(CFLAGS)
 	
-bin/$(OUTPUT): $(OBJECTS)
-	$(GCC) -o $@ $(OBJECTS) $(LIB)
+bin/$(TARGET_BIN)$(OUTPUT): $(OBJECTS)
+	$(GPP) -o $@ $(OBJECTS) $(LIB)
+	cp $@ $@.debug
+	$(STRIP) -S --strip-unneeded $@
 
 clean:
 	$(RM) $(OBJECTS)
