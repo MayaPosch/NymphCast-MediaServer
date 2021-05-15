@@ -158,7 +158,7 @@ int main(int argc, char** argv) {
 	}
 	
 	if (sarge.exists("version")) {
-		std::cout << "NymphCast version: " << __VERSION << std::endl;
+		std::cout << "NymphCast Media Server version: " << __VERSION << std::endl;
 		return 0;
 	}
 	
