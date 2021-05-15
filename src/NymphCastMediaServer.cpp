@@ -146,7 +146,7 @@ int main(int argc, char** argv) {
 	sarge.setArgument("h", "help", "Get this help message.", false);
 	sarge.setArgument("c", "configuration", "Path to configuration file.", true);
 	sarge.setArgument("f", "folders", "Path to folder list file.", true);
-	sarge.setArgument("v", "version", "Output the NymphCast version and exit.", false);
+	sarge.setArgument("v", "version", "Output the NymphCast Media Server version and exit.", false);
 	sarge.setDescription("NymphCast Media Server. Shares files with NymphCast clients. More details: http://nyanko.ws/nymphcast.php.");
 	sarge.setUsage("nymphcast_mediaserver <options>");
 	
