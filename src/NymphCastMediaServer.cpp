@@ -286,6 +286,8 @@ int main(int argc, char** argv) {
 	gMutex.lock();
 	gCon.wait(gMutex);
 	
+	std::cout << "Stopping NymphCast Media Server..." << std::endl;
+	
 	// Clean-up
 	NyanSD::stopListener();
 	NymphRemoteClient::shutdown();
