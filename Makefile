@@ -39,6 +39,7 @@ CFLAGS := $(INCLUDE) -g3 -std=c++17 $(VERSIONINFO)
 ifdef OS
 	CFLAGS := $(CFLAGS) -U__STRICT_ANSI__
 	LIB += -lws2_32
+	OUTPUT := $(OUTPUT).exe
 else
 	LIB += -pthread
 endif
@@ -59,6 +60,20 @@ bin/$(TARGET_BIN)$(OUTPUT): $(OBJECTS)
 	$(GPP) -o $@ $(OBJECTS) $(LIB)
 	cp $@ $@.debug
 	$(STRIP) -S --strip-unneeded $@
+	
+PREFIX ?= /usr/local
+
+ifeq ($(PREFIX),/usr/local)
+	CONFDIR := $(PREFIX)/etc
+else
+	CONFDIR := /etc
+endif
+	
+install:
+	install -d $(DESTDIR)$(PREFIX)/bin/ \
+			-d $(DESTDIR)$(CONFDIR)/nymphcast/
+	install -m 755 bin/$(TARGET_BIN)$(OUTPUT) $(DESTDIR)$(PREFIX)/bin/
+	install -m 644 *.ini $(DESTDIR)$(CONFDIR)/nymphcast/
 
 clean:
 	$(RM) $(OBJECTS)
