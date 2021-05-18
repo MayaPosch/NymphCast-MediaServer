@@ -36,6 +36,7 @@ namespace fs = std::filesystem;
 
 struct MediaFile {
 	std::string section;
+	std::string filename;
 	fs::path path;
 };
 
@@ -43,7 +44,6 @@ struct MediaFile {
 // Global objects.
 Condition gCon;
 Mutex gMutex;
-NymphArray* media_files = new NymphArray();
 std::vector<MediaFile> mediaFiles;
 NymphCastClient client;
 uint32_t handle = 0;
@@ -60,8 +60,16 @@ void signal_handler(int signal) {
 NymphMessage* getFileList(int session, NymphMessage* msg, void* data) {
 	NymphMessage* returnMsg = msg->getReplyMessage();
 	
+	// Copy values from the media file array into the new array.
 	NymphArray* tArr = new NymphArray();
-	*tArr = *media_files;
+	for (uint32_t i = 0; i < mediaFiles.size(); ++i) {
+		NymphStruct* f = new NymphStruct();
+		f->addPair("id", new NymphUint32(i));
+		f->addPair("section", new NymphString(mediaFiles[i].section));
+		f->addPair("filename", new NymphString(mediaFiles[i].filename));
+		tArr->addValue(f);
+	}
+	
 	returnMsg->setResultValue(tArr);
 	return returnMsg;
 }
@@ -229,14 +237,9 @@ int main(int argc, char** argv) {
 				// Add to media file list.
 				std::cout << "Adding file: " << fe << std::endl;
 				
-				NymphStruct* f = new NymphStruct();
-				f->addPair("id", new NymphUint32(index++));
-				f->addPair("section", new NymphString(*it));
-				f->addPair("filename", new NymphString(fe.filename().string()));
-				media_files->addValue(f);
-				
 				mf.path = fe;
 				mf.section = *it;
+				mf.filename = fe.filename().string();
 				mediaFiles.push_back(mf);
 			}
 		}
