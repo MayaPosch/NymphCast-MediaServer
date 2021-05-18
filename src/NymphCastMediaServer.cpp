@@ -273,17 +273,17 @@ int main(int argc, char** argv) {
 	signal(SIGINT, signal_handler);
 	
 	// Start server on port 4004.
-	NymphRemoteClient::start(4004);
+	NymphRemoteClient::start(4005);
 	
 	// Start NyanSD announcement server.
 	NYSD_service sv;
-	sv.port = 4004;
+	sv.port = 4005;
 	sv.protocol = NYSD_PROTOCOL_TCP;
 	sv.service = "nymphcast_mediaserver";
 	NyanSD::addService(sv);
 	
-	std::cout << "Starting NyanSD on port 4004 UDP..." << std::endl;
-	NyanSD::startListener(4004);
+	std::cout << "Starting NyanSD on port 4005 UDP..." << std::endl;
+	NyanSD::startListener(4005);
 	
 	// Wait for the condition to be signalled.
 	gMutex.lock();
