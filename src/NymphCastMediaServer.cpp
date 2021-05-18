@@ -104,7 +104,7 @@ NymphMessage* playMedia(int session, NymphMessage* msg, void* data) {
 	((NymphStruct*) receivers[0])->getValue("ipv4", sip);
 	serverip = ((NymphString*) sip)->getValue();
 	receivers.erase(receivers.begin());	// Erase server entry from the list, pass the rest as slaves.
-	if (!client.connectServer(serverip, handle)) {
+	if (!client.connectServer(serverip, 0, handle)) {
 		std::cerr << "Failed to connect to server: " << serverip << std::endl;
 		returnMsg->setResultValue(new NymphUint8(1));
 		return returnMsg;
