@@ -46,6 +46,8 @@ path=audio
 path=video
 ```
 
-Each section specifies the name of the collection, with the path variable defining the directory path (relative to the media server binary) where the shared media files are located. 
+Each section specifies the name of the collection, with the path variable defining the directory path (either relative to the media server binary or as absolute path) where the shared media files are located. 
+
+On Windows, use regular Windows path, e.g. `D:\Media\Video`.
 
 These shared folder are scanned recursively (including sub-folders) for media files (audio, video, images) based on their extensions. A full list of extensions can be found in [mimetype.cpp](src/mimetype.cpp).
