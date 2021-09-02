@@ -21,7 +21,7 @@ class MimeType {
 	
 public:
 	static std::string getMimeType(std::string extension);
-	static bool hasExtension(std::string extension);
+	static bool hasExtension(std::string extension, uint8_t &type);
 };
 
 #endif

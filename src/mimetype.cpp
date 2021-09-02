@@ -111,10 +111,17 @@ std::string MimeType::getMimeType(std::string extension) {
 
 
 // --- HAS EXTENSION ---
-bool MimeType::hasExtension(std::string extension) {
+bool MimeType::hasExtension(std::string extension, uint8_t &type) {
 	std::map<std::string, std::string>::const_iterator it;
 	it = mimes.find(extension);
 	if (it == mimes.end()) { return false; }
+	
+	//std::string ts = it->second.substr(0, it->second.find('/'));
+	std::string ts = it->second.substr(0, 5);
+	if (ts == "audio") {		type = 0; }
+	else if (ts == "video") {	type = 1; }
+	else if (ts == "image") {	type = 2; }
+	else { return false; }
 	
 	return true;
 }

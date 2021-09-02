@@ -33,10 +33,14 @@ using namespace Poco;
 #include <filesystem> 		// C++17
 namespace fs = std::filesystem;
 
-
+// Types:
+// 0	Audio
+// 1	Video
+// 2	Image
 struct MediaFile {
 	std::string section;
 	std::string filename;
+	uint8_t type;
 	fs::path path;
 };
 
@@ -67,6 +71,7 @@ NymphMessage* getFileList(int session, NymphMessage* msg, void* data) {
 		f->addPair("id", new NymphUint32(i));
 		f->addPair("section", new NymphString(mediaFiles[i].section));
 		f->addPair("filename", new NymphString(mediaFiles[i].filename));
+		f->addPair("type", new NymphUint8(mediaFiles[i].type));
 		tArr->addValue(f);
 	}
 	
@@ -233,13 +238,15 @@ int main(int argc, char** argv) {
 			ext.erase(0, 1);	// Remove leading '.' character.
 			//std::cout << "Checking extension: " << ext << std::endl;
 			MediaFile mf;
-			if (MimeType::hasExtension(ext)) {
+			uint8_t type;
+			if (MimeType::hasExtension(ext, type)) {
 				// Add to media file list.
 				std::cout << "Adding file: " << fe << std::endl;
 				
 				mf.path = fe;
 				mf.section = *it;
 				mf.filename = fe.filename().string();
+				mf.type = type;
 				mediaFiles.push_back(mf);
 			}
 		}
