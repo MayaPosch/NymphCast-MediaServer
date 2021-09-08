@@ -229,8 +229,7 @@ int main(int argc, char** argv) {
 		for (fs::recursive_directory_iterator next(dir); next != fs::end(next); next++) {
 			fs::path fe = next->path();
 			//std::cout << "Checking path: " << fe.string() << std::endl;
-			if (!fs::is_regular_file(fe)) { 
-				std::cout << "Not a regular file." << std::endl;
+			if (!fs::is_regular_file(fe)) {
 				continue; 
 			}
 			
