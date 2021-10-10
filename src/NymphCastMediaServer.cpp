@@ -57,6 +57,7 @@ std::string serverip;
 
 void signal_handler(int signal) {
 	gCon.signal();
+	//playerCon.signal();
 }
 
 
@@ -65,17 +66,42 @@ NymphMessage* getFileList(int session, NymphMessage* msg, void* data) {
 	NymphMessage* returnMsg = msg->getReplyMessage();
 	
 	// Copy values from the media file array into the new array.
-	NymphArray* tArr = new NymphArray();
+	//NymphArray* tArr = new NymphArray();
+	std::vector<NymphType*>* tArr = new std::vector<NymphType*>();
 	for (uint32_t i = 0; i < mediaFiles.size(); ++i) {
-		NymphStruct* f = new NymphStruct();
-		f->addPair("id", new NymphUint32(i));
-		f->addPair("section", new NymphString(mediaFiles[i].section));
-		f->addPair("filename", new NymphString(mediaFiles[i].filename));
-		f->addPair("type", new NymphUint8(mediaFiles[i].type));
-		tArr->addValue(f);
+		//NymphStruct* f = new NymphStruct();
+		std::map<std::string, NymphPair>* pairs = new std::map<std::string, NymphPair>;
+		
+		//f->addPair("id", new NymphUint32(i));
+		NymphPair pair;
+		std::string* key = new std::string("id");
+		pair.key = new NymphType(key, true);
+		pair.value = new NymphType(i);
+		pairs->insert(std::pair<std::string, NymphPair>(*key, pair));
+	
+		//f->addPair("section", new NymphString(mediaFiles[i].section));
+		key = new std::string("section");
+		pair.key = new NymphType(key, true);
+		pair.value = new NymphType(&mediaFiles[i].section);
+		pairs->insert(std::pair<std::string, NymphPair>(*key, pair));
+		
+		//f->addPair("filename", new NymphString(mediaFiles[i].filename));
+		key = new std::string("filename");
+		pair.key = new NymphType(key, true);
+		pair.value = new NymphType(&mediaFiles[i].filename);
+		pairs->insert(std::pair<std::string, NymphPair>(*key, pair));
+		
+		//f->addPair("type", new NymphUint8(mediaFiles[i].type));
+		key = new std::string("type");
+		pair.key = new NymphType(key, true);
+		pair.value = new NymphType(mediaFiles[i].type);
+		pairs->insert(std::pair<std::string, NymphPair>(*key, pair));
+		
+		tArr->push_back(new NymphType(pairs, true));
 	}
 	
-	returnMsg->setResultValue(tArr);
+	returnMsg->setResultValue(new NymphType(tArr, true));
+	msg->discard();
 	return returnMsg;
 }
 
@@ -86,51 +112,54 @@ NymphMessage* playMedia(int session, NymphMessage* msg, void* data) {
 	NymphMessage* returnMsg = msg->getReplyMessage();
 	
 	// Get the file ID to play back and the list of receivers to play it back on.
-	uint32_t fileId = ((NymphUint32*) msg->parameters()[0])->getValue();
-	std::vector<NymphType*> receivers = ((NymphArray*) msg->parameters()[1])->getValues();
+	uint32_t fileId = msg->parameters()[0]->getUint32();
+	std::vector<NymphType*>* receivers = msg->parameters()[1]->getArray();
 	
 	// Obtain the file record using its ID.
 	if (fileId > mediaFiles.size()) {
 		// Invalid file ID.
-		returnMsg->setResultValue(new NymphUint8(1));
+		returnMsg->setResultValue(new NymphType((uint8_t) 1));
+		msg->discard();
 		return returnMsg;
 	}
 	
 	MediaFile& mf = mediaFiles[fileId];
 	
 	// Connect to first receiver in the list, then send the remaining receivers as slave receivers.
-	if (receivers.empty()) {
+	if (receivers->empty()) {
 		// No receivers to connect to.
-		returnMsg->setResultValue(new NymphUint8(1));
+		returnMsg->setResultValue(new NymphType((uint8_t) 1));
+		msg->discard();
 		return returnMsg;
 	}
 	
 	NymphType* sip = 0;
-	((NymphStruct*) receivers[0])->getValue("ipv4", sip);
-	serverip = ((NymphString*) sip)->getValue();
-	receivers.erase(receivers.begin());	// Erase server entry from the list, pass the rest as slaves.
+	(*receivers)[0]->getStructValue("ipv4", sip);
+	serverip = sip->getString();
+	receivers->erase(receivers->begin());	// Erase server entry from the list, pass the rest as slaves.
 	if (!client.connectServer(serverip, 0, handle)) {
 		std::cerr << "Failed to connect to server: " << serverip << std::endl;
-		returnMsg->setResultValue(new NymphUint8(1));
+		returnMsg->setResultValue(new NymphType((uint8_t) 1));
+		msg->discard();
 		return returnMsg;
 	}
 	
 	std::vector<NymphCastRemote> slaves;
-	for (int i = 0; i < receivers.size(); ++i) {
+	for (int i = 0; i < receivers->size(); ++i) {
 		NymphCastRemote remote;
 		NymphType* value = 0;
-		((NymphStruct*) receivers[i])->getValue("name", value);
-		remote.name = ((NymphString*) value)->getValue();
-		((NymphStruct*) receivers[i])->getValue("ipv4", value);
-		remote.ipv4 = ((NymphString*) value)->getValue();
-		((NymphStruct*) receivers[i])->getValue("ipv6", value);
-		remote.ipv6 = ((NymphString*) value)->getValue();
+		(*receivers)[i]->getStructValue("name", value);
+		remote.name = value->getString();
+		(*receivers)[i]->getStructValue("ipv4", value);
+		remote.ipv4 = value->getString();
+		(*receivers)[i]->getStructValue("ipv6", value);
+		remote.ipv6 = value->getString();
 		
 		slaves.push_back(remote);
 	}
 	
 	// Set up slaves.
-	if (!receivers.empty()) {
+	if (!receivers->empty()) {
 		client.addSlaves(handle, slaves);
 	}
 	
@@ -138,11 +167,13 @@ NymphMessage* playMedia(int session, NymphMessage* msg, void* data) {
 	if (!client.castFile(handle, mf.path.string())) {
 		// Playback failed.
 		std::cerr << "Playback failed for file: " << mf.path.string() << std::endl;
-		returnMsg->setResultValue(new NymphUint8(1));
+		returnMsg->setResultValue(new NymphType((uint8_t) 1));
+		msg->discard();
 		return returnMsg;
 	}
 	
-	returnMsg->setResultValue(new NymphUint8(0));
+	returnMsg->setResultValue(new NymphType((uint8_t) 0));
+	msg->discard();
 	return returnMsg;
 }
 
@@ -225,7 +256,6 @@ int main(int argc, char** argv) {
 		}
 		
 		// Iterate through the directory to filter out the media files.
-		NymphArray* file_list = new NymphArray();
 		for (fs::recursive_directory_iterator next(dir); next != fs::end(next); next++) {
 			fs::path fe = next->path();
 			//std::cout << "Checking path: " << fe.string() << std::endl;
@@ -263,16 +293,14 @@ int main(int argc, char** argv) {
 	std::vector<NymphTypes> parameters;
 	
 	// array getFileList()
-	NymphMethod getFileListFunction("getFileList", parameters, NYMPH_ARRAY);
-	getFileListFunction.setCallback(getFileList);
+	NymphMethod getFileListFunction("getFileList", parameters, NYMPH_ARRAY, getFileList);
 	NymphRemoteClient::registerMethod("getFileList", getFileListFunction);
 	
 	// uint8 playMedia(uint32 id, array receivers)
 	parameters.clear();
 	parameters.push_back(NYMPH_UINT32);
 	parameters.push_back(NYMPH_ARRAY);
-	NymphMethod playMediaFunction("playMedia", parameters, NYMPH_UINT8);
-	playMediaFunction.setCallback(playMedia);
+	NymphMethod playMediaFunction("playMedia", parameters, NYMPH_UINT8, playMedia);
 	NymphRemoteClient::registerMethod("playMedia", playMediaFunction);
 	
 	// Install signal handler to terminate the server.
