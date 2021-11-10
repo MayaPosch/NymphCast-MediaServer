@@ -29,6 +29,7 @@
 #include <Poco/Thread.h>
 using namespace Poco;
 
+#include <map>
 #include <csignal>
 #include <filesystem> 		// C++17
 namespace fs = std::filesystem;
@@ -52,6 +53,7 @@ std::vector<MediaFile> mediaFiles;
 NymphCastClient client;
 uint32_t handle = 0;
 std::string serverip;
+std::map<uint32_t, bool> receiverStatus;
 // ---
 
 
@@ -184,6 +186,33 @@ void serverLogFunction(int level, std::string logStr) {
 }
 
 
+// --- STATUS UPDATE CALLBACK ---
+void statusUpdateCallback(uint32_t handle, NymphPlaybackStatus status) {
+	// If we get a 'stopped' status from the remote while we're playing, that means playback has stopped.
+	// In this case we have to shutdown communications for the provided handle.
+	if (status.status == NYMPH_PLAYBACK_STATUS_PLAYING) {
+		// Set as playing.
+		if (receiverStatus.find(handle) == receiverStatus.end()) {
+			// Insert new entry.
+			receiverStatus.insert(std::pair<uint32_t, bool>(handle, true));
+		}
+	}
+	else if (status.status == NYMPH_PLAYBACK_STATUS_STOPPED) {
+		// End session.
+		client.disconnectServer(handle);
+		
+		std::map<uint32_t, bool>::iterator it = receiverStatus.find(handle);
+		if (it == receiverStatus.end()) {
+			// Unknown handle. Abort.
+			return;
+		}
+		
+		receiverStatus.erase(it);
+	}
+	
+}
+
+
 int main(int argc, char** argv) {
 	// Parse the command line arguments.
 	Sarge sarge;
@@ -287,6 +316,8 @@ int main(int argc, char** argv) {
 	//NymphRemoteClient::init(serverLogFunction, NYMPH_LOG_LEVEL_TRACE, timeout);
 	NymphRemoteClient::init(serverLogFunction, NYMPH_LOG_LEVEL_INFO, timeout);
 	
+	// Configure client.
+	client.setStatusUpdateCallback(statusUpdateCallback);
 	
 	// Define all of the RPC methods we want to export for clients.
 	std::cout << "Registering methods...\n";
