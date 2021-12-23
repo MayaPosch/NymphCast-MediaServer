@@ -38,6 +38,7 @@ namespace fs = std::filesystem;
 // 0	Audio
 // 1	Video
 // 2	Image
+// 3	Playlist
 struct MediaFile {
 	std::string section;
 	std::string filename;
@@ -59,7 +60,6 @@ std::map<uint32_t, bool> receiverStatus;
 
 void signal_handler(int signal) {
 	gCon.signal();
-	//playerCon.signal();
 }
 
 
@@ -68,32 +68,26 @@ NymphMessage* getFileList(int session, NymphMessage* msg, void* data) {
 	NymphMessage* returnMsg = msg->getReplyMessage();
 	
 	// Copy values from the media file array into the new array.
-	//NymphArray* tArr = new NymphArray();
 	std::vector<NymphType*>* tArr = new std::vector<NymphType*>();
 	for (uint32_t i = 0; i < mediaFiles.size(); ++i) {
-		//NymphStruct* f = new NymphStruct();
 		std::map<std::string, NymphPair>* pairs = new std::map<std::string, NymphPair>;
 		
-		//f->addPair("id", new NymphUint32(i));
 		NymphPair pair;
 		std::string* key = new std::string("id");
 		pair.key = new NymphType(key, true);
 		pair.value = new NymphType(i);
 		pairs->insert(std::pair<std::string, NymphPair>(*key, pair));
 	
-		//f->addPair("section", new NymphString(mediaFiles[i].section));
 		key = new std::string("section");
 		pair.key = new NymphType(key, true);
 		pair.value = new NymphType(&mediaFiles[i].section);
 		pairs->insert(std::pair<std::string, NymphPair>(*key, pair));
 		
-		//f->addPair("filename", new NymphString(mediaFiles[i].filename));
 		key = new std::string("filename");
 		pair.key = new NymphType(key, true);
 		pair.value = new NymphType(&mediaFiles[i].filename);
 		pairs->insert(std::pair<std::string, NymphPair>(*key, pair));
 		
-		//f->addPair("type", new NymphUint8(mediaFiles[i].type));
 		key = new std::string("type");
 		pair.key = new NymphType(key, true);
 		pair.value = new NymphType(mediaFiles[i].type);
@@ -337,7 +331,7 @@ int main(int argc, char** argv) {
 	// Install signal handler to terminate the server.
 	signal(SIGINT, signal_handler);
 	
-	// Start server on port 4004.
+	// Start server on port 4005.
 	NymphRemoteClient::start(4005);
 	
 	// Start NyanSD announcement server.
