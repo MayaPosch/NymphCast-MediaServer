@@ -30,7 +30,10 @@
 using namespace Poco;
 
 #include <map>
+#include <vector>
 #include <csignal>
+#include <fstream>
+#include <mutex>
 #include <filesystem> 		// C++17
 namespace fs = std::filesystem;
 
@@ -47,14 +50,25 @@ struct MediaFile {
 };
 
 
+struct RemoteServerStatus {
+	NymphPlaybackStatus status;
+	bool init = false;	// True after first connection update.
+	bool list = false;	// Do we have a playlist?
+	std::vector<std::string> playlist;
+	uint32_t playlistId = 0;
+};
+
+
 // Global objects.
 Condition gCon;
 Mutex gMutex;
 std::vector<MediaFile> mediaFiles;
-NymphCastClient client;
+static NymphCastClient client;
 uint32_t handle = 0;
 std::string serverip;
 std::map<uint32_t, bool> receiverStatus;
+std::map<uint32_t, RemoteServerStatus> remoteStatus;
+std::mutex remoteMutex;
 // ---
 
 
@@ -129,6 +143,9 @@ NymphMessage* playMedia(int session, NymphMessage* msg, void* data) {
 		return returnMsg;
 	}
 	
+	// Lock access to the remotes map for synchronisation reasons.
+	remoteMutex.lock();
+	
 	NymphType* sip = 0;
 	(*receivers)[0]->getStructValue("ipv4", sip);
 	serverip = sip->getString();
@@ -137,8 +154,21 @@ NymphMessage* playMedia(int session, NymphMessage* msg, void* data) {
 		std::cerr << "Failed to connect to server: " << serverip << std::endl;
 		returnMsg->setResultValue(new NymphType((uint8_t) 1));
 		msg->discard();
+		remoteMutex.unlock();
 		return returnMsg;
 	}
+	
+	// Create new entry for this remote if we don't have it registered yet.
+	// TODO: handle case where we're already playing on this remote.
+	if (remoteStatus.find(handle) == remoteStatus.end()) {
+		// Insert new entry.
+		RemoteServerStatus rs;
+		rs.list = false;
+		rs.playlistId = 0;
+		remoteStatus.insert(std::pair<uint32_t, RemoteServerStatus>(handle, rs));
+	}
+	
+	remoteMutex.unlock();
 	
 	std::vector<NymphCastRemote> slaves;
 	for (int i = 0; i < receivers->size(); ++i) {
@@ -159,13 +189,83 @@ NymphMessage* playMedia(int session, NymphMessage* msg, void* data) {
 		client.addSlaves(handle, slaves);
 	}
 	
-	// Initiate playback. We immediately return here if playback start is successful.
-	if (!client.castFile(handle, mf.path.string())) {
-		// Playback failed.
-		std::cerr << "Playback failed for file: " << mf.path.string() << std::endl;
-		returnMsg->setResultValue(new NymphType((uint8_t) 1));
-		msg->discard();
-		return returnMsg;
+	// If the item is a playlist, we want to play back each individual item.
+	if (mf.type == 3) {
+		// Get the remote status reference.
+		remoteMutex.lock();
+		std::map<uint32_t, RemoteServerStatus>::iterator rit;
+		rit = remoteStatus.find(handle);
+		if (rit == remoteStatus.end()) {
+			// Failed to find remote somehow. Panic.
+			returnMsg->setResultValue(new NymphType((uint8_t) 1));
+			msg->discard();
+			remoteMutex.unlock();
+			return returnMsg;
+		}
+		
+		// Clear the playlist.
+		std::vector<std::string>& playlist = rit->second.playlist;
+		playlist.clear();
+		rit->second.playlistId = 0;
+		rit->second.list = true;
+		
+		// Open playlist file, try to parse it into a local playlist for use later.
+		std::ifstream pl(mf.path.string());
+		if (!pl.is_open()) {
+			std::cerr << "Failed to open playlist file." << std::endl;
+			returnMsg->setResultValue(new NymphType((uint8_t) 1));
+			msg->discard();
+			remoteMutex.unlock();
+			return returnMsg;
+		}
+		
+		// Parse file.
+		std::string line;
+		while (std::getline(pl, line)) {
+			// Skip extended M3U lines as we don't need them.
+			if (line[0] == '#') { continue; }
+			
+			// Check that the file exists.
+			fs::path mf = line;
+			if (!fs::is_regular_file(mf)) {
+				std::cerr << "Skipping non-existing playlist file: " << line << std::endl;
+				continue;
+			}
+			
+			playlist.push_back(line);
+		}
+		
+		pl.close();
+		remoteMutex.unlock();
+		
+		if (playlist.empty()) {
+			// Empty playlist. Abort.
+			std::cerr << "Found empty playlist. Aborting playback." << std::endl;
+			returnMsg->setResultValue(new NymphType((uint8_t) 1));
+			msg->discard();
+			return returnMsg;
+		}
+		
+		// Play back first file.
+		if (!client.castFile(handle, playlist[0])) {
+			// Playback failed.
+			std::cerr << "Playback failed for file: " << playlist[0] << std::endl;
+			returnMsg->setResultValue(new NymphType((uint8_t) 1));
+			msg->discard();
+			return returnMsg;
+		}
+		
+		rit->second.playlistId++;
+	}
+	else {
+		// Initiate playback. We immediately return here if playback start is successful.
+		if (!client.castFile(handle, mf.path.string())) {
+			// Playback failed.
+			std::cerr << "Playback failed for file: " << mf.path.string() << std::endl;
+			returnMsg->setResultValue(new NymphType((uint8_t) 1));
+			msg->discard();
+			return returnMsg;
+		}
 	}
 	
 	returnMsg->setResultValue(new NymphType((uint8_t) 0));
@@ -182,6 +282,9 @@ void serverLogFunction(int level, std::string logStr) {
 
 // --- STATUS UPDATE CALLBACK ---
 void statusUpdateCallback(uint32_t handle, NymphPlaybackStatus status) {
+	// Debug
+	std::cout << "Received remote status update. Status: " << status.status << std::endl;
+	
 	// If we get a 'stopped' status from the remote while we're playing, that means playback has stopped.
 	// In this case we have to shutdown communications for the provided handle.
 	if (status.status == NYMPH_PLAYBACK_STATUS_PLAYING) {
@@ -192,8 +295,81 @@ void statusUpdateCallback(uint32_t handle, NymphPlaybackStatus status) {
 		}
 	}
 	else if (status.status == NYMPH_PLAYBACK_STATUS_STOPPED) {
-		// End session.
-		client.disconnectServer(handle);
+		// If we're playing back a playlist, we may want to play the next item. Make sure this
+		// is desired behaviour by the user.
+		if (!status.stopped) {
+			// Play back next track in the playlist, if any.
+			remoteMutex.lock();
+			if (remoteStatus.find(handle) == remoteStatus.end()) {
+				// Entry not found. Proceed to cleaning up.
+				remoteMutex.unlock();
+			}
+			else {
+				// Play next entry in the playlist, if any.
+				// Get the remote status reference.
+				std::map<uint32_t, RemoteServerStatus>::iterator rit;
+				rit = remoteStatus.find(handle);
+				if (rit == remoteStatus.end()) {
+					// Failed to find remote somehow. Panic.
+					std::cerr << "Failed to find remote in map. Abort." << std::endl;
+					remoteMutex.unlock();
+					return;
+				}
+				
+				// If this is the first time we get called, skip playback.
+				// It means this is the status update right after connecting.
+				if (!(rit->second.init)) {
+					std::cout << "Initial status update. Skipping update." << std::endl;
+					rit->second.init = true;
+					remoteMutex.unlock();
+					return;
+				}
+				
+				if (!(rit->second.list)) {
+					std::cout << "Not a playlist. Do nothing." << std::endl;
+					remoteMutex.unlock();
+					return;
+				}
+				
+				remoteMutex.unlock();
+				
+				// Start the playback.
+				std::vector<std::string>& playlist = rit->second.playlist;
+				uint32_t& playlistId = rit->second.playlistId;
+				
+				std::cout << "Playlist ID: " << playlistId << std::endl;
+				
+				if (playlist.size() > playlistId) {
+					std::cout << "Playing back next track in playlist..." << std::endl;
+					if (!client.castFile(handle, playlist[playlistId])) {
+						// Playback failed.
+						std::cerr << "Playback failed for file: " << playlist[playlistId] << std::endl;
+						return;
+					}
+					
+					rit->second.playlistId++;
+					return;
+				}
+				
+				// No more items to play back.
+				std::cout << "Finished playlist. Shutting down connection with receiver." << std::endl;
+			}
+		}
+		else {
+			// Remote playback was stopped by a user. Stop playback & end session.
+		}
+		
+		// Remove local references to this former handle.
+		remoteMutex.lock();
+		std::map<uint32_t, RemoteServerStatus>::iterator rit = remoteStatus.find(handle);
+		if (rit == remoteStatus.end()) {
+			// Unknown handle. Abort.
+			remoteMutex.unlock();
+			return;
+		}
+		
+		remoteStatus.erase(rit);
+		remoteMutex.unlock();
 		
 		std::map<uint32_t, bool>::iterator it = receiverStatus.find(handle);
 		if (it == receiverStatus.end()) {
@@ -201,9 +377,9 @@ void statusUpdateCallback(uint32_t handle, NymphPlaybackStatus status) {
 			return;
 		}
 		
+		client.disconnectServer(handle);
 		receiverStatus.erase(it);
 	}
-	
 }
 
 

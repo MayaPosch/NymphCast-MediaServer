@@ -100,6 +100,8 @@ std::map<std::string, std::string> MimeType::mimes {
 	{"webp", "image/webp"},
 	{"wmf", "image/wmf"},
 	{"xm", "audio/xm"},
+	{"m3u", "application/mpegurl"},
+	{"m3u8", "application/mpegurl"},
 };
 
 
@@ -124,6 +126,7 @@ bool MimeType::hasExtension(std::string extension, uint8_t &type) {
 	if (ts == "audio") {		type = 0; }
 	else if (ts == "video") {	type = 1; }
 	else if (ts == "image") {	type = 2; }
+	else if (ts == "appli") {	type = 3; }
 	else { return false; }
 	
 	return true;
