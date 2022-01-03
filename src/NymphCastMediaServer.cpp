@@ -226,7 +226,7 @@ NymphMessage* playMedia(int session, NymphMessage* msg, void* data) {
 			if (line[0] == '#') { continue; }
 			
 			// Check that the file exists.
-			fs::path mf = line;
+			fs::path mf = fs::u8path(line);	// Convert from Unicode for cross-platform support.
 			if (!fs::is_regular_file(mf)) {
 				std::cerr << "Skipping non-existing playlist file: " << line << std::endl;
 				continue;
