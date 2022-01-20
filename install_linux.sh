@@ -24,7 +24,7 @@ sudo make install
 if [ -d "/run/systemd/system" ]; then
 	echo "Installing systemd service..."
 	sudo make install-systemd
-	sudo systemctl enable nymphcast.service
+	sudo systemctl enable nymphcast_mediaserver.service
 else
 	echo "Installing OpenRC service..."
 	sudo make install-openrc

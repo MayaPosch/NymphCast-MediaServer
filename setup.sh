@@ -106,6 +106,6 @@ rm -rf libnymphcast
 # Build the server.
 make
 
-if [ ! -z "${PACKAGE}" ]; then
+#if [ ! -z "${PACKAGE}" ]; then
 	# Packaging step.
-fi
+#fi
