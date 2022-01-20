@@ -73,7 +73,20 @@ install:
 	install -d $(DESTDIR)$(PREFIX)/bin/ \
 			-d $(DESTDIR)$(CONFDIR)/nymphcast/
 	install -m 755 bin/$(TARGET_BIN)$(OUTPUT) $(DESTDIR)$(PREFIX)/bin/
-	install -m 644 *.ini $(DESTDIR)$(CONFDIR)/nymphcast/
+	install -m 644 folders.ini $(DESTDIR)$(CONFDIR)/nymphcast/
+
+SED_REPLACE := -e 's:@BIN@:$(PREFIX)/bin/$(OUTPUT):g' \
+	-e 's:@FOLDERS@:$(CONFDIR)/nymphcast/folders.ini:g'
+
+.PHONY: install-systemd
+install-systemd:
+	sed ${SED_REPLACE} systemd/nymphcast_mediaserver.service > /etc/systemd/system/nymphcast_mediaserver.service
+
+.PHONY: install-openrc
+install-openrc:
+	install -d $(DESTDIR)$(CONFDIR)/init.d/	
+	sed ${SED_REPLACE} openrc/nymphcast_mediaserver > $(DESTDIR)$(CONFDIR)/init.d/nymphcast_mediaserver
+	chmod 0755 $(DESTDIR)$(CONFDIR)/init.d/nymphcast_mediaserver
 
 clean:
 	$(RM) $(OBJECTS)

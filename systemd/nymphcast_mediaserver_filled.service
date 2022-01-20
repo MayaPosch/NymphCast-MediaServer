@@ -1,0 +1,10 @@
+[Unit]
+Description=NymphCast MediaServer
+
+[Service]
+ExecStart=/usr/local/bin/nymphcast_mediaserver -f /usr/local/etc/nymphcast/folders.ini
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,10 @@
+[Unit]
+Description=NymphCast MediaServer
+
+[Service]
+ExecStart=@BIN@ -f @FOLDERS@
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
