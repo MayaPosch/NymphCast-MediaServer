@@ -2,16 +2,39 @@
 
 NymphCast MediaServer (NC-MS) is part of the [NymphCast project](https://github.com/MayaPosch/NymphCast). It enables the sharing of media files to NymphCast clients and servers on the network. Provided is a server application which can be installed on a system located on the same local network (LAN) as those servers and clients.
 
+
 ## Features ##
 
 
 * Make media files in specific folders available for NymphCast clients.
 * Enable the streaming of shared media files to specific NymphCast devices, or groups of devices.
+* Playlist support: shared M3U playlists are played back by NC-MS.
 
-## Status ##
+## Quick Start ##
 
-NC-MS is - as specified on the central NymphCast project page - an Alpha-level project. This means that bugs are to be expected, features may be missing and no easy-to-use installers are provided as of yet.
+Download or clone the project, then after moving into the root project folder on supported platforms run:
 
+```
+./setup.sh
+```
+
+This will install any missing dependencies and compile NC-MS for the host platform. 
+
+After this NC-MS can be installed on **Linux** platforms using:
+
+```
+sudo ./install_linux.sh
+```
+
+This will install NC-MS and set up a Systemd/OpenRC service to auto-start NC-MS on boot.
+
+**Supported platforms** here are:
+
+* Debian Linux and derivatives (Ubuntu, Mint, etc.).
+* Arch Linux and derivatives (e.g. Manjaro).
+* Alpine Linux and derivatives.
+* Windows (in [MSYS2](http://msys2.org/) MinGW64 environment).
+* MacOS (using GCC toolchain & [Homebrew](https://brew.sh/)).
 
 ## Getting Started ##
 
