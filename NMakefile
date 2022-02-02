@@ -6,13 +6,13 @@
 # Copyright (c) 2021 Nyanko.ws
 #
 # Usage: nmake -f NMakefile [definitions] [target]
-# 
+#
 # Definitions:
-# - CONFIG={Debug|Release}
-# - CPPSTD={flag}
-# - LNKCRT={flag}
-# - WARNING={flag}
-# - OPTIMIZATION={flag}
+# - NC_CONFIG={Debug|Release}
+# - NC_CPPSTD={flag}
+# - NC_LNKCRT={flag}
+# - NC_WARNING={flag}
+# - NC_OPTIMIZATION={flag}
 # - POCO_ROOT={install-folder}]
 # - NYMPHRPC_ROOT={install-folder}
 # - LIBNYMPHCAST_ROOT={install-folder}
@@ -58,26 +58,32 @@
 
 # Note: no space before macro being defined.
 
-!ifdef CONFIG
-LIB_CONFIG = $(CONFIG)
+!ifdef NC_CONFIG
+LIB_CONFIG = $(NC_CONFIG)
 !else
 LIB_CONFIG = Release
 !endif
 
-LIB_DEF_CPPSTD = -std:c++17	# -std:c++latest: bytebauble.h(62): error C2760: syntax error: unexpected token 'identifier', expected ';'
+LIB_DEF_CPPSTD = -std:c++17	#-std:c++latest
 
-!ifdef CPPSTD
-LIB_CPPSTD = $(CPPSTD)
+!ifdef NC_CPPSTD
+LIB_CPPSTD = $(NC_CPPSTD)
 !else
 LIB_CPPSTD = $(LIB_DEF_CPPSTD)
 !endif
 
 LIB_DEF_LNKCRT = -MD
 
-!ifdef LNKCRT
-LIB_LNKCRT = $(LNKCRT)
+!ifdef NC_LNKCRT
+LIB_LNKCRT = $(NC_LNKCRT)
 !else
 LIB_LNKCRT = $(LIB_DEF_LNKCRT)
+!endif
+
+!if "$(LIB_LNKCRT)" == "-MT"
+LIB_LNKCRT_MT = mt
+!else
+LIB_LNKCRT_MT =
 !endif
 
 !ifndef POCO_ROOT
@@ -100,16 +106,16 @@ NYMPHCAST_ROOT = D:\Programs\NymphCast
 INSTALL_PREFIX = $(NYMPHCAST_ROOT)
 !endif
 
-!ifdef OPTIMIZATION
-LIB_OPTIMIZATION = $(OPTIMIZATION)
+!ifdef NC_OPTIMIZATION
+LIB_OPTIMIZATION = $(NC_OPTIMIZATION)
 !elseif "$(LIB_CONFIG)" == "Release"
 LIB_OPTIMIZATION = -O2
 !else
 LIB_OPTIMIZATION = -Od
 !endif
 
-!ifdef WARNING
-LIB_WARNING = $(WARNING)
+!ifdef NC_WARNING
+LIB_WARNING = $(NC_WARNING)
 !else
 LIB_WARNING =	# Use default warning level
 !endif
@@ -119,9 +125,13 @@ LIB_WARNING =	# Use default warning level
 # Determine 32, or 64 bit:
 
 !if "$(VSCMD_ARG_TGT_ARCH)" == "x86"
-LIB_BITS = 32
+LIB_BITS     = 32
+LIB_BITS_SFX =
+LIB_BITS_CFG = Win32
 !elseif "$(VSCMD_ARG_TGT_ARCH)" == "x64"
-LIB_BITS = 64
+LIB_BITS     = 64
+LIB_BITS_SFX = 64
+LIB_BITS_CFG = x64
 !else
 !error [Got unexpected target architecture '$(VSCMD_ARG_TGT_ARCH)'. Bailing out.]
 !endif
@@ -162,7 +172,7 @@ MKDIR = md		# Note: Do not use MAKEDIR=... as MAKEDIR is an NMake macro.
 
 # Include the file with the versioning information ('VERSION' variable).
 #!include version
-BIN_VERSION = -D__VERSION="\"v0.1-alpha3.20200925\""	# TODO obtain version from file; NMake does not support :=
+BIN_VERSION = -D__VERSION="\"v0.1-RC1\""	# TODO obtain version from file; NMake does not support :=
 
 BIN_OUTPUT  = NymphCastMediaServer.exe
 
@@ -173,12 +183,24 @@ BIN_FOLDER  = bin/$(LIB_ARCH)/$(LIB_CONFIG)			# e.g.: bin\x86_32-w64-msvc\Releas
 LIB_FOLDER  = lib/$(LIB_ARCH)/$(LIB_CONFIG)			# e.g.: lib\x86_32-w64-msvc\Release
 OBJ_FOLDER  = obj/$(LIB_ARCH)/$(LIB_CONFIG)			# e.g.: obj\x86_32-w64-msvc\Release
 
-LIB_INCLUDE = -I $(SRC_FOLDER) -I $(LIBNYMPHCAST_ROOT)/include -I $(NYMPHRPC_ROOT)/include -I $(POCO_ROOT)/include
-LIB_LIBS    = NymphCast.lib NymphRPC.lib # PocoFoundation.lib PocoNet.lib # PocoUtil.lib PocoJSON.lib
-CXXFLAGS    = $(LIB_CPPSTD) -EHsc $(LIB_LNKCRT) $(LIB_WARNING) $(LIB_OPTIMIZATION) $(LIB_INCLUDE) $(BIN_VERSION)
+LIB_INCLUDE = \
+    -I $(SRC_FOLDER) \
+    -I $(LIBNYMPHCAST_ROOT)/include \
+    -I $(NYMPHRPC_ROOT)/include \
+    -I $(POCO_ROOT)/include
+
+LIB_LIBS = \
+    NymphCast.lib \
+    NymphRPC.lib \
+    PocoFoundation$(LIB_LNKCRT_MT).lib \
+    PocoNet$(LIB_LNKCRT_MT).lib \
+    PocoUtil$(LIB_LNKCRT_MT).lib
+
+CXXFLAGS = $(LIB_CPPSTD) -EHsc $(LIB_LNKCRT) $(LIB_WARNING) $(LIB_OPTIMIZATION) $(LIB_INCLUDE) $(BIN_VERSION)
 
 INST_FOLDER_INC = $(INSTALL_PREFIX)\include\nymph
 INST_FOLDER_LIB = $(INSTALL_PREFIX)\lib
+INST_FOLDER_BIN = $(INSTALL_PREFIX)\bin
 
 # MSVC and Windows SDK paths:
 
@@ -233,7 +255,7 @@ LIB_OBJECTS_DIR = $(LIB_OBJECTS_TMP:src/=obj/x86_64-w64-msvc/Release/)
 # Targets:
 #
 
-all: print-configuration lib
+all: print-configuration prg
 
 print-configuration:
 	@echo.
@@ -258,9 +280,9 @@ print-configuration:
 	@echo "- objects: $(LIB_OBJECTS_DIR)"
 	@echo.
 
-lib: makedir-lib $(BIN_FOLDER)\$(BIN_OUTPUT)
+prg: makedir-prg $(BIN_FOLDER)\$(BIN_OUTPUT)
 
-makedir-lib:
+makedir-prg:
 	-$(MKDIR) "$(BIN_FOLDER)" > nul 2>&1
 	-$(MKDIR) "$(OBJ_FOLDER)" > nul 2>&1
 
@@ -281,15 +303,13 @@ $(BIN_FOLDER)\$(BIN_OUTPUT): $(LIB_OBJECTS_DIR)
 
 # Installation targets:
 
-install: lib makedir-install copy-install
+install: prg makedir-install copy-install
 
 makedir-install:
-	-$(MKDIR) "$(INST_FOLDER_INC:/=\)" > nul 2>&1
-	-$(MKDIR) "$(INST_FOLDER_LIB:/=\)" > nul 2>&1
+	-$(MKDIR) "$(INST_FOLDER_BIN:/=\)" > nul 2>&1
 
 copy-install:
-	$(CP) "$(SRC_FOLDER:/=\)\*.h" "$(INST_FOLDER_INC:/=\)\"
-	$(CP) "$(LIB_FOLDER:/=\)\$(LIB_OUTPUT)" "$(INST_FOLDER_LIB:/=\)\"
+	$(CP) "$(BIN_FOLDER:/=\)\$(BIN_OUTPUT)" "$(INST_FOLDER_BIN:/=\)\"
 
 # Clean targets:
 
