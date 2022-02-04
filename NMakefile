@@ -32,19 +32,14 @@
 # - `LNKCRT` defaults to `-MD`.
 # - `WARNING` defaults to empty, default compiler behaviour.
 # - `OPTIMIZATION` defaults to `-Od` for Debug, `-O2` for Release.
-# - If defined, environment variable `POCO_ROOT` is used for Poco dependency.
-# - If defined, environment variable `NYMPHRPC_ROOT` is used for NymphRPC dependency.
-# - If defined, environment variable `LIBNYMPHCAST_ROOT` is used for LibNymphCast dependency.
-# - If defined, environment variable `NYMPHCAST_ROOT` is used for target `install`, unless
-#   `INSTALL_PREFIX` is specified on the commandline.
+# - `INSTALL_PREFIX` defaults to `D:\Programs\NymphCastMediaServer`
+# - If defined, environment variable `POCO_ROOT` is used for Poco dependency [D:\Libraries\Poco].
+# - If defined, environment variable `NYMPHRPC_ROOT` is used for NymphRPC dependency [D:\Libraries\NymphRPC].
+# - If defined, environment variable `LIBNYMPHCAST_ROOT` is used for LibNymphCast dependency [D:\Libraries\LibNymphCast].
 #
 # Dependencies:
 # - Nymph: NymphRPC, libnymphcast
 # - Poco: PocoFoundation, PocoNet, https://pocoproject.org/
-#
-# Installation destination:
-# - `NYMPHCAST_ROOT`
-# - e.g.: `set NYMPHCAST_ROOT=C:\Libraries\NymphCast`
 #
 # Product build directories:
 # - .\bin\x86_{32|64}-w64-msvc\{Debug|Release}
@@ -98,12 +93,8 @@ NYMPHRPC_ROOT = D:\Libraries\NymphRPC
 LIBNYMPHCAST_ROOT = D:\Libraries\LibNymphCast
 !endif
 
-!ifndef NYMPHCAST_ROOT
-NYMPHCAST_ROOT = D:\Programs\NymphCast
-!endif
-
 !ifndef INSTALL_PREFIX
-INSTALL_PREFIX = $(NYMPHCAST_ROOT)
+INSTALL_PREFIX = D:\Programs\NymphCastMediaServer
 !endif
 
 !ifdef NC_OPTIMIZATION
@@ -184,19 +175,34 @@ LIB_FOLDER  = lib/$(LIB_ARCH)/$(LIB_CONFIG)			# e.g.: lib\x86_32-w64-msvc\Releas
 OBJ_FOLDER  = obj/$(LIB_ARCH)/$(LIB_CONFIG)			# e.g.: obj\x86_32-w64-msvc\Release
 
 LIB_INCLUDE = \
-    -I $(SRC_FOLDER) \
-    -I $(LIBNYMPHCAST_ROOT)/include \
-    -I $(NYMPHRPC_ROOT)/include \
-    -I $(POCO_ROOT)/include
+	-I $(SRC_FOLDER) \
+	-I $(LIBNYMPHCAST_ROOT)/include \
+	-I $(NYMPHRPC_ROOT)/include \
+	-I $(POCO_ROOT)/include
 
 LIB_LIBS = \
-    NymphCast.lib \
-    NymphRPC.lib \
-    PocoFoundation$(LIB_LNKCRT_MT).lib \
-    PocoNet$(LIB_LNKCRT_MT).lib \
-    PocoUtil$(LIB_LNKCRT_MT).lib
+	NymphCast$(LIB_LNKCRT_MT).lib \
+	NymphRPC$(LIB_LNKCRT_MT).lib \
+	PocoFoundation$(LIB_LNKCRT_MT).lib \
+	PocoJSON$(LIB_LNKCRT_MT).lib \
+	PocoNet$(LIB_LNKCRT_MT).lib \
+	PocoUtil$(LIB_LNKCRT_MT).lib \
+	Ws2_32.lib \
+	iphlpapi.lib
 
-CXXFLAGS = $(LIB_CPPSTD) -EHsc $(LIB_LNKCRT) $(LIB_WARNING) $(LIB_OPTIMIZATION) $(LIB_INCLUDE) $(BIN_VERSION)
+LIB_DLLS = \
+	$(POCO_ROOT)/bin/libexpat.dll \
+	$(POCO_ROOT)/bin/libpng16.dll \
+	$(POCO_ROOT)/bin/pcre.dll \
+	$(POCO_ROOT)/bin/PocoFoundation.dll \
+	$(POCO_ROOT)/bin/PocoJSON.dll \
+	$(POCO_ROOT)/bin/PocoNet.dll \
+	$(POCO_ROOT)/bin/PocoUtil.dll \
+	$(POCO_ROOT)/bin/PocoXML.dll \
+	$(POCO_ROOT)/bin/zlib1.dll
+
+
+CXXFLAGS = $(LIB_CPPSTD) -EHsc -Zi -MP $(LIB_LNKCRT) $(LIB_WARNING) $(LIB_OPTIMIZATION) $(LIB_INCLUDE) $(BIN_VERSION)
 
 INST_FOLDER_INC = $(INSTALL_PREFIX)\include\nymph
 INST_FOLDER_LIB = $(INSTALL_PREFIX)\lib
@@ -292,6 +298,7 @@ $(LIB_OBJECTS_DIR): $(LIB_SOURCES_DIR)
 
 $(BIN_FOLDER)\$(BIN_OUTPUT): $(LIB_OBJECTS_DIR)
 	$(CXX) -Fe$(BIN_FOLDER)\$(BIN_OUTPUT) $(LIB_OBJECTS_DIR) /link \
+	/DEBUG /PDB:$(BIN_FOLDER)/$(BIN_OUTPUT:.exe=.pdb) \
 	/machine:"$(LNK_MACHINE)" \
 	/libpath:"$(NYMPHRPC_ROOT)\lib" \
 	/libpath:"$(LIBNYMPHCAST_ROOT)\lib" \
@@ -308,8 +315,11 @@ install: prg makedir-install copy-install
 makedir-install:
 	-$(MKDIR) "$(INST_FOLDER_BIN:/=\)" > nul 2>&1
 
-copy-install:
+copy-install: copy-install-dll
 	$(CP) "$(BIN_FOLDER:/=\)\$(BIN_OUTPUT)" "$(INST_FOLDER_BIN:/=\)\"
+
+copy-install-dll: $(LIB_DLLS:/=\)
+	for %f in ($**) do @$(CP) %f "$(INST_FOLDER_BIN:/=\)\" > nul 2>&1
 
 # Clean targets:
 
