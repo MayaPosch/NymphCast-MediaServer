@@ -1,0 +1,5 @@
+Now create a 'folders.ini' file and provide it to NymphCast Media Server:
+
+NymphCastMediaServer.exe -f /path/to/folders.ini
+
+See also the NymphCast Media Server shortcuts in the Start menu.
