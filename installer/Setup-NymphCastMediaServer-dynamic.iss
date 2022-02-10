@@ -16,12 +16,14 @@
 #define MyAppUpdatesURL     "https://github.com/MayaPosch/NymphCast-MediaServer/releases"
 #define MyAppComments       "Media server for the NymphCast ecosystem."
 
+#define MyAppBinFolder      "../bin/x86_64-w64-msvc/release/"
+
 #define MyAppBaseName        MyAppNameNoSpace
 #define MyAppExeName         MyAppBaseName + ".exe"
 #define MyAppIconName        MyAppBaseName + ".ico"
 #define MyAppHomeShortcut    MyAppBaseName + ".url"
-
-#define MyAppDestExeName     MyAppNameNoSpace + ".exe"
+#define MyAppExeSrcPath      MyAppBinFolder + MyAppExeName
+#define MyAppExeDestName     MyAppNameNoSpace + ".exe"
 
 #define MyAppReadme         "Readme.txt"
 #define MyAppChanges        "Changes.txt"
@@ -80,6 +82,7 @@ AppPublisher       = {#MyAppPublisher}
 AppPublisherURL    = {#MyAppPublisherURL}
 AppSupportURL      = {#MyAppSupportURL}
 AppUpdatesURL      = {#MyAppUpdatesURL}
+AppCopyright       = {#MyAppCopyright}
 
 DefaultDirName     = {pf}\{#MyAppBaseName}
 DefaultGroupName   = {#MyAppBaseName}
@@ -128,8 +131,8 @@ Source: "{#WgetPath}"; DestDir: "{tmp}"; Flags: deleteafterinstall;
 
 ; Program and DLLs of dependencies:
 
-Source: ".\folders.ini"                                    ; DestDir: "{app}\config"; Flags: ignoreversion
-Source: "..\bin\x86_64-w64-msvc\release\{#MyAppExeName}"   ; DestDir: "{app}\bin"   ; DestName: "{#MyAppDestExeName}"; Flags: ignoreversion
+Source: ".\folders.ini"     ; DestDir: "{app}\config"; Flags: ignoreversion
+Source: "{#MyAppExeSrcPath}"; DestDir: "{app}\bin"   ; DestName: "{#MyAppExeDestName}"; Flags: ignoreversion
 
 Source: "{#VcpkgRoot}/{#VcpkgDllFolder}/libexpat.dll"      ; DestDir: "{app}/bin"   ; Flags: ignoreversion
 Source: "{#VcpkgRoot}/{#VcpkgDllFolder}/libpng16.dll"      ; DestDir: "{app}/bin"   ; Flags: ignoreversion
@@ -141,7 +144,7 @@ Source: "{#VcpkgRoot}/{#VcpkgDllFolder}/PocoUtil.dll"      ; DestDir: "{app}/bin
 Source: "{#VcpkgRoot}/{#VcpkgDllFolder}/PocoXML.dll"       ; DestDir: "{app}/bin"   ; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\{#MyAppName} - Config"; Filename: "{%COMSPEC}"; Parameters: "/k """"{app}\bin\{#MyAppDestExeName}"" --folders ""{app}/config/{#NcFolderConfig}""" ; WorkingDir: "{autodocs}"; Comment: "Run NymphCast Media Server with config/folder.ini configuration.";
+Name: "{group}\{#MyAppName} - Config"; Filename: "{%COMSPEC}"; Parameters: "/k """"{app}\bin\{#MyAppExeDestName}"" --folders ""{app}/config/{#NcFolderConfig}""" ; WorkingDir: "{autodocs}"; Comment: "Run NymphCast Media Server with config/folder.ini configuration.";
 Name: "{group}\{#NcFolderConfig}"    ; Filename: "{app}/config/{#NcFolderConfig}"
 ;Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 ;Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: quicklaunchicon
@@ -153,7 +156,7 @@ Filename: "{tmp}/{#Wget}"        ; Parameters: """{#VcRedistUrl}"""; WorkingDir:
 Filename: "{tmp}/{#VcRedistFile}"; Parameters: "/install /passive" ; WorkingDir: "{tmp}"; StatusMsg: "{#VcRedistMsg}"  ; Check: IsWin64 and not VCinstalled
 
 ; If requested, run NymphCast Media Server with [folder.ini] configuration:
-Filename: "{%COMSPEC}"; Parameters: "/k """"{app}\bin\{#MyAppDestExeName}"" --folders ""{app}/config/{#NcFolderConfig}""" ; WorkingDir: "{autodocs}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+Filename: "{%COMSPEC}"; Parameters: "/k """"{app}\bin\{#MyAppExeDestName}"" --folders ""{app}/config/{#NcFolderConfig}""" ; WorkingDir: "{autodocs}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
 ; Code to determine if installation of VC14.1 (VS2017) runtime is needed.
 ; From: http://stackoverflow.com/questions/11137424/how-to-make-vcredist-x86-reinstall-only-if-not-yet-installed/11172939#11172939
