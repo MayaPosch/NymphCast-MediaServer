@@ -17,8 +17,8 @@ echo.
 
 set INSTALL_PREFIX=D:\Programs\NymphCastMediaServer
 
-set NC_LNKCRT=-MD
-:: set NC_LNKCRT=-MT
+set NC_STATIC=0
+:: set NC_STATIC=1
 
 set NC_CONFIG=Release
 :: set NC_CONFIG=Debug
@@ -26,10 +26,13 @@ set NC_CONFIG=Release
 set NCS_TGT_BITS=64
 set NCS_TGT_ARCH=x%NCS_TGT_BITS%
 
+set NC_LNKCRT=-MD
 set VCPKG_TRIPLET=x64-windows
-:: set VCPKG_TRIPLET=x64-windows-static
 
-:: Select static/dynamic linking
+if [%NC_STATIC%] == [1] (
+    set NC_LNKCRT=-MT
+    set VCPKG_TRIPLET=x64-windows-static
+)
 
 :: Check for 64-bit Native Tools Command Prompt
 
@@ -99,6 +102,7 @@ if exist "%LIBNYMPHCAST_ROOT%\include\nymphcast_client.h" (
 :: Finally, build NymphCast Media Server:
 
 nmake -nologo -f NMakefile ^
+         NC_STATIC=%NC_STATIC% ^
          NC_CONFIG=%NC_CONFIG% ^
          NC_LNKCRT=%NC_LNKCRT% ^
          POCO_ROOT=%POCO_ROOT% ^

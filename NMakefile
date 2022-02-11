@@ -8,6 +8,7 @@
 # Usage: nmake -f NMakefile [definitions] [target]
 #
 # Definitions:
+# - NC_STATIC={0|1}
 # - NC_CONFIG={Debug|Release}
 # - NC_CPPSTD={flag}
 # - NC_LNKCRT={flag}
@@ -27,11 +28,12 @@
 # - real-clean, same as dist-clean
 #
 # Configuration:
-# - `CONFIG` defaults to `Release`.
-# - `CPPSTD` defaults to `-std:c++17`.
-# - `LNKCRT` defaults to `-MD`.
-# - `WARNING` defaults to empty, default compiler behaviour.
-# - `OPTIMIZATION` defaults to `-Od` for Debug, `-O2` for Release.
+# - `NC_STATIC` defaults to `0`.
+# - `NC_CONFIG` defaults to `Release`.
+# - `NC_CPPSTD` defaults to `-std:c++17`.
+# - `NC_LNKCRT` defaults to `-MD`.
+# - `NC_WARNING` defaults to empty, default compiler behaviour.
+# - `NC_OPTIMIZATION` defaults to `-Od` for Debug, `-O2` for Release.
 # - `INSTALL_PREFIX` defaults to `D:\Programs\NymphCastMediaServer`
 # - If defined, environment variable `POCO_ROOT` is used for Poco dependency [D:\Libraries\Poco].
 # - If defined, environment variable `NYMPHRPC_ROOT` is used for NymphRPC dependency [D:\Libraries\NymphRPC].
@@ -52,6 +54,12 @@
 # Configuration:
 
 # Note: no space before macro being defined.
+
+!ifdef NC_STATIC
+LIB_STATIC = $(NC_STATIC)
+!else
+LIB_STATIC = 0
+!endif
 
 !ifdef NC_CONFIG
 LIB_CONFIG = $(NC_CONFIG)
@@ -212,8 +220,15 @@ LIB_DLLS = \
 	$(POCO_ROOT)/bin/PocoXML.dll \
 	$(POCO_ROOT)/bin/zlib1.dll
 
+!if $(LIB_STATIC) != 0
+LIB_DEFS_STATIC = -DPOCO_STATIC
+!else
+LIB_DEFS_STATIC =
+!endif
 
-CXXFLAGS = $(LIB_CPPSTD) -EHsc -Zi -MP $(LIB_LNKCRT) $(LIB_WARNING) $(LIB_OPTIMIZATION) $(LIB_INCLUDE) $(BIN_VERSION)
+LIB_FLAGS = # -Zc:strictStrings-
+LIB_DEFS  = $(LIB_DEFS_STATIC)
+CXXFLAGS  = $(LIB_CPPSTD) -EHsc -Zi -MP $(LIB_FLAGS) $(LIB_LNKCRT) $(LIB_WARNING) $(LIB_OPTIMIZATION) $(LIB_DEFS) $(LIB_INCLUDE) $(BIN_VERSION)
 
 INST_FOLDER_INC = $(INSTALL_PREFIX)\include\nymph
 INST_FOLDER_LIB = $(INSTALL_PREFIX)\lib
@@ -276,7 +291,8 @@ all: print-configuration prg
 
 print-configuration:
 	@echo.
-	@echo Building static library '$(BIN_OUTPUT)' with Configuration:
+	@echo Building application '$(BIN_OUTPUT)' with Configuration:
+	@echo "- LIB_STATIC       : '$(LIB_STATIC)'"
 	@echo "- LIB_CONFIG       : '$(LIB_CONFIG)'"
 	@echo "- LIB_BITS         : '$(LIB_BITS)'"
 	@echo "- LIB_CPPSTD       : '$(LIB_CPPSTD)'"
