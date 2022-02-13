@@ -6,7 +6,6 @@
 
 #define MyAppName           "NymphCast Media Server"
 #define MyAppNameNoSpace    "NymphCastMediaServer"
-#define MyAppVersion        "0.1.0-RC1"
 #define MyAppPublisher      "Nyanko"
 #define MyAppPublisherURL   "http://www.nyanko.ws/"
 #define MyAppContact        "info@nyanko.ws"
@@ -32,6 +31,13 @@
 #define MyAppInfoAfterFile  "InfoAfter.txt"
 
 #define NcFolderConfig      "folders.ini"
+
+; Product version string is expected from a definition on 
+; the iscc commandline like: `-DMyAppVersion="v0.1[.2][-rc0-yyyymmdd]"`.
+
+#ifndef MyAppVersion
+#define MyAppVersion         "vx.x.x"
+#endif
 
 ; Paths for DLLs of dependencies to include:
 
@@ -86,7 +92,7 @@ AppCopyright       = {#MyAppCopyright}
 
 DefaultDirName     = {pf}\{#MyAppBaseName}
 DefaultGroupName   = {#MyAppBaseName}
-OutputBaseFilename = Setup-{#MyAppBaseName}-{#MyAppVersion}
+OutputBaseFilename = Setup-{#MyAppBaseName}-{#MyAppVersion}-dll
 
 ; Show welcome page [, license, pre- and postinstall information]:
 
