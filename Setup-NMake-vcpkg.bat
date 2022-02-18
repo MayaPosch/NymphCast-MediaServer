@@ -17,6 +17,7 @@ echo.
 
 set INSTALL_PREFIX=D:\Programs\NymphCastMediaServer
 
+:: Note: static building does not yet work.
 set NC_STATIC=0
 :: set NC_STATIC=1
 
@@ -32,17 +33,18 @@ set VCPKG_TRIPLET=x64-windows
 if [%NC_STATIC%] == [1] (
     set NC_LNKCRT=-MT
     set VCPKG_TRIPLET=x64-windows-static
+    echo [Setup NCMS: static build does not yet work. Continuing.]
 )
 
 :: Check for 64-bit Native Tools Command Prompt
 
-if not [%VSCMD_ARG_TGT_ARCH%] == [x64] (
-    echo [Make sure to run these commands in a '64-bit Native Tools Command Prompt'; expecting 'x64', got '%VSCMD_ARG_TGT_ARCH%'. Bailing out.]
+if not [%VSCMD_ARG_TGT_ARCH%] == [%NCS_TGT_ARCH%] (
+    echo [Setup NCMS: Make sure to run these commands in a '64-bit Native Tools Command Prompt'; expecting 'x64', got '%VSCMD_ARG_TGT_ARCH%'. Bailing out.]
     endlocal & goto :EOF
 )
 
 if [%VCPKG_ROOT%] == [] (
-    echo [Make sure environment variable 'VCPKG_ROOT' points to your vcpkg installation; it's empty or does not exist. Bailing out.]
+    echo [Setup NCMS: Make sure environment variable 'VCPKG_ROOT' points to your vcpkg installation; it's empty or does not exist. Bailing out.]
     endlocal & goto :EOF
 )
 
