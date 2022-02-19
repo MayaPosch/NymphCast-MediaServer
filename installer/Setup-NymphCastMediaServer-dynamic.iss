@@ -39,6 +39,10 @@
 #define MyAppVersion         "vx.x.x"
 #endif
 
+; Tasks:
+
+#define NcConfigAutorunTask "Autorun NymphCast Server with Default Configuration"
+
 ; Paths for DLLs of dependencies to include:
 
 #define VcpkgRoot            GetEnv('VCPKG_ROOT')
@@ -122,8 +126,9 @@ ShowComponentSizes    = yes
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "desktopicon"    ; Description: "{cm:CreateDesktopIcon}"    ; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked; OnlyBelowVersion: 0,6.1
+Name: "Autorun"        ; Description: "Autorun server"            ; GroupDescription: "{#NcConfigAutorunTask}"; Flags: unchecked
+Name: "desktopicon"    ; Description: "{cm:CreateDesktopIcon}"    ; GroupDescription: "{cm:AdditionalIcons}"  ; Flags: unchecked
+Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"  ; Flags: unchecked; OnlyBelowVersion: 0,6.1
 
 [Dirs]
 Name: "{app}/bin"
@@ -152,6 +157,10 @@ Source: "{#VcpkgRoot}/{#VcpkgDllFolder}/PocoXML.dll"       ; DestDir: "{app}/bin
 [Icons]
 Name: "{group}\{#MyAppName} - Config"; Filename: "{%COMSPEC}"; Parameters: "/k """"{app}\bin\{#MyAppExeDestName}"" --folders ""{app}/config/{#NcFolderConfig}""" ; WorkingDir: "{autodocs}"; Comment: "Run NymphCast Media Server with config/folder.ini configuration.";
 Name: "{group}\{#NcFolderConfig}"    ; Filename: "{app}/config/{#NcFolderConfig}"
+
+; {userstartup}, or {commonstartup}:
+Name: "{userstartup}\{#MyAppName}"   ; Filename: "{%COMSPEC}"; Parameters: "/k """"{app}\bin\{#MyAppExeDestName}"" --folders ""{app}/config/{#NcFolderConfig}""" ; WorkingDir: "{autodocs}"; Comment: "Run NymphCast Media Server with config/folder.ini configuration."; Tasks: Autorun
+
 ;Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 ;Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: quicklaunchicon
 
