@@ -32,7 +32,7 @@
 
 #define NcFolderConfig      "folders.ini"
 
-; Product version string is expected from a definition on 
+; Product version string is expected from a definition on
 ; the iscc commandline like: `-DMyAppVersion="v0.1[.2][-rc0-yyyymmdd]"`.
 
 #ifndef MyAppVersion
@@ -41,7 +41,7 @@
 
 ; Tasks:
 
-#define NcConfigAutorunTask "Autorun NymphCast Server with Default Configuration"
+#define NcConfigAutorunTask "Autorun NymphCast Media Server with Default Configuration"
 
 ; Paths for DLLs of dependencies to include:
 
