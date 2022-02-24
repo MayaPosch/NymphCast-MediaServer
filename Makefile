@@ -88,5 +88,20 @@ install-openrc:
 	sed ${SED_REPLACE} openrc/nymphcast_mediaserver > $(DESTDIR)$(CONFDIR)/init.d/nymphcast_mediaserver
 	chmod 0755 $(DESTDIR)$(CONFDIR)/init.d/nymphcast_mediaserver
 
+# Package up the compiled project and dependencies.
+# For use on Linux-compatible platforms.
+package:
+	rm -rf out/nymphcast
+	$(MAKEDIR) out/nymphcast/bin
+	$(MAKEDIR) out/nymphcast/lib
+	$(MAKEDIR) out/nymphcast/systemd
+	cp bin/$(TARGET_BIN)$(OUTPUT) out/nymphcast/bin/.
+	cp -a /usr/lib/libnymphrpc.* out/nymphcast/lib/.
+	cp -a /usr/lib/libnymphcast.* out/nymphcast/lib/.
+	cp folders.ini out/nymphcast/.
+	cp systemd/nymphcast_mediaserver_filled.service out/nymphcast/systemd/nymphcast_mediaserver.service
+	cp install.sh out/nymphcast/.
+	tar -C out/ -cvzf out/$(OUTPUT)-$(VERSION)-$(USYS)-$(UMCH).tar.gz nymphcast
+
 clean:
 	$(RM) $(OBJECTS)
