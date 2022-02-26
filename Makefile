@@ -24,6 +24,9 @@ endif
 
 TARGET_BIN := $(TARGET)/
 
+USYS := $(shell uname -s)
+UMCH := $(shell uname -m)
+
 
 # Include the file with the versioning information ('VERSION' variable).
 include version.mk
