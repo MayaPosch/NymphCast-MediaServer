@@ -28,8 +28,8 @@ sudo install -m 644 *.ini /usr/local/etc/nymphcast/
 read -p "Install systemd service for NymphCast MediaServer? [y/n] (default: n): " choice
 if [ "$choice" = "y" ]; then
 	echo "Installing systemd service..."
-	sudo cp systemd/nymphcast.service /etc/systemd/system/nymphcast.service
-	sudo systemctl enable nymphcast.service
+	sudo cp systemd/nymphcast_mediaserver.service /etc/systemd/system/nymphcast_mediaserver.service
+	sudo systemctl enable nymphcast_mediaserver.service
 else
 	echo "Skipping system service installation..."
 fi
