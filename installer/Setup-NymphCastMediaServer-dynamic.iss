@@ -148,6 +148,7 @@ Source: "{#MyAppExeSrcPath}"; DestDir: "{app}\bin"   ; DestName: "{#MyAppExeDest
 Source: "{#VcpkgRoot}/{#VcpkgDllFolder}/libexpat.dll"      ; DestDir: "{app}/bin"   ; Flags: ignoreversion
 Source: "{#VcpkgRoot}/{#VcpkgDllFolder}/libpng16.dll"      ; DestDir: "{app}/bin"   ; Flags: ignoreversion
 Source: "{#VcpkgRoot}/{#VcpkgDllFolder}/pcre.dll"          ; DestDir: "{app}/bin"   ; Flags: ignoreversion
+Source: "{#VcpkgRoot}/{#VcpkgDllFolder}/zlib1.dll"         ; DestDir: "{app}/bin"   ; Flags: ignoreversion
 Source: "{#VcpkgRoot}/{#VcpkgDllFolder}/PocoFoundation.dll"; DestDir: "{app}/bin"   ; Flags: ignoreversion
 Source: "{#VcpkgRoot}/{#VcpkgDllFolder}/PocoJSON.dll"      ; DestDir: "{app}/bin"   ; Flags: ignoreversion
 Source: "{#VcpkgRoot}/{#VcpkgDllFolder}/PocoNet.dll"       ; DestDir: "{app}/bin"   ; Flags: ignoreversion
