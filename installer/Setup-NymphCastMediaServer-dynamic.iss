@@ -156,14 +156,13 @@ Source: "{#VcpkgRoot}/{#VcpkgDllFolder}/PocoUtil.dll"      ; DestDir: "{app}/bin
 Source: "{#VcpkgRoot}/{#VcpkgDllFolder}/PocoXML.dll"       ; DestDir: "{app}/bin"   ; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\{#MyAppName} - Config"; Filename: "{%COMSPEC}"; Parameters: "/k """"{app}\bin\{#MyAppExeDestName}"" --folders ""{app}/config/{#NcFolderConfig}""" ; WorkingDir: "{autodocs}"; Comment: "Run NymphCast Media Server with config/folder.ini configuration.";
 Name: "{group}\{#NcFolderConfig}"    ; Filename: "{app}/config/{#NcFolderConfig}"
+Name: "{group}\{#MyAppName} - Config"; Filename: "{%COMSPEC}"; Parameters: "/k """"{app}\bin\{#MyAppExeDestName}"" --folders ""{app}/config/{#NcFolderConfig}""" ; WorkingDir: "{autodocs}"; Comment: "Run NymphCast Media Server with config/folder.ini configuration.";
+Name: "{commondesktop}\{#MyAppName}" ; Filename: "{%COMSPEC}"; Parameters: "/k """"{app}\bin\{#MyAppExeDestName}"" --folders ""{app}/config/{#NcFolderConfig}""" ; WorkingDir: "{autodocs}"; Comment: "Run NymphCast Media Server with config/folder.ini configuration."; Tasks: desktopicon
+Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#MyAppName}"; Filename: "{%COMSPEC}"; Parameters: "/k """"{app}\bin\{#MyAppExeDestName}"" --folders ""{app}/config/{#NcFolderConfig}""" ; WorkingDir: "{autodocs}"; Comment: "Run NymphCast Media Server with config/folder.ini configuration."; Tasks: quicklaunchicon
 
 ; {userstartup}, or {commonstartup}:
 Name: "{userstartup}\{#MyAppName}"   ; Filename: "{%COMSPEC}"; Parameters: "/k """"{app}\bin\{#MyAppExeDestName}"" --folders ""{app}/config/{#NcFolderConfig}""" ; WorkingDir: "{autodocs}"; Comment: "Run NymphCast Media Server with config/folder.ini configuration."; Tasks: Autorun
-
-;Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
-;Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: quicklaunchicon
 
 [Run]
 
