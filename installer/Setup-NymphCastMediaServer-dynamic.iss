@@ -115,6 +115,11 @@ ChangesAssociations = no
 ChangesEnvironment  = no
 ; No update of other applications (explorer) needed
 
+; Ensure 64-bit install:
+
+ArchitecturesAllowed            = x64
+ArchitecturesInstallIn64BitMode = x64
+
 ; Cosmetic:
 
 ;SetupIconFile        = {#MyAppIconName}
