@@ -56,15 +56,6 @@
 #define VcRedistUrl         "https://aka.ms/vs/17/release/" + VcRedistFile
 #define VcRedistMsg         "Installing Microsoft Visual C++ 14.1 RunTime..."
 
-; Tool wget Expected in {NymphCast}/tools/
-; wget.exe: https://eternallybored.org/misc/wget/
-
-#define ToolPath            "../../NymphCast/tools/"
-
-#define Wget                "wget.exe"
-#define WgetPath             ToolPath + Wget
-#define WgetMsgRedist       "Downloading VC redistributable"
-
 [Setup]
 
 ; Require Windows 7 or newer:
@@ -142,8 +133,8 @@ Name: "{app}/config"
 [Files]
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
-; Tools:
-Source: "{#WgetPath}"; DestDir: "{tmp}"; Flags: deleteafterinstall;
+; Visual C++ runtime:
+Source: "{tmp}/{#VcRedistFile}"; DestDir: "{tmp}"; Flags: external; Check: not VCinstalled
 
 ; Program and DLLs of dependencies:
 
@@ -171,9 +162,8 @@ Name: "{userstartup}\{#MyAppName}"   ; Filename: "{%COMSPEC}"; Parameters: "/k "
 
 [Run]
 
-; If needed, download and install the Visual C++ runtime:
-Filename: "{tmp}/{#Wget}"        ; Parameters: """{#VcRedistUrl}"""; WorkingDir: "{tmp}"; StatusMsg: "{#WgetMsgRedist}"; Check: IsWin64 and not VCinstalled
-Filename: "{tmp}/{#VcRedistFile}"; Parameters: "/install /passive" ; WorkingDir: "{tmp}"; StatusMsg: "{#VcRedistMsg}"  ; Check: IsWin64 and not VCinstalled
+; If needed, download (see TDownloadWizardPage) and install the Visual C++ runtime:
+Filename: "{tmp}/{#VcRedistFile}"; Parameters: "/install /passive" ; WorkingDir: "{tmp}"; StatusMsg: "{#VcRedistMsg}"; Check: not VCinstalled
 
 ; If requested, run NymphCast Media Server with [folder.ini] configuration:
 Filename: "{%COMSPEC}"; Parameters: "/k """"{app}\bin\{#MyAppExeDestName}"" --folders ""{app}/config/{#NcFolderConfig}""" ; WorkingDir: "{autodocs}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
@@ -204,10 +194,50 @@ function VCinstalled: Boolean;
             // Version info was found. Return true if later or equal to our 14.31.30818.00 redistributable
             // Note brackets required because of weird operator precendence
             Result := (major >= 14) and (minor >= 31) and (bld >= 30818) and (rbld >= 0)
+
         end;
       end;
     end;
   end;
  end;
+
+var
+  DownloadPage: TDownloadWizardPage;
+
+function OnDownloadProgress(const Url, FileName: String; const Progress, ProgressMax: Int64): Boolean;
+begin
+  if Progress = ProgressMax then
+    Log(Format('Successfully downloaded file to {tmp}: %s', [FileName]));
+  Result := True;
+end;
+
+procedure InitializeWizard;
+begin
+  DownloadPage := CreateDownloadPage(SetupMessage(msgWizardPreparing), SetupMessage(msgPreparingDesc), @OnDownloadProgress);
+end;
+
+function NextButtonClick(CurPageID: Integer): Boolean;
+begin
+  if (CurPageID = wpReady) and (not VCinstalled) then begin
+    DownloadPage.Clear;
+    DownloadPage.Add('{#VcRedistUrl}', '{#VcRedistFile}', '');
+    DownloadPage.Show;
+    try
+      try
+        DownloadPage.Download; // This downloads the files to {tmp}
+        Result := True;
+      except
+        if DownloadPage.AbortedByUser then
+          Log('Aborted by user.')
+        else
+          SuppressibleMsgBox(AddPeriod(GetExceptionMessage), mbCriticalError, MB_OK, IDOK);
+        Result := False;
+      end;
+    finally
+      DownloadPage.Hide;
+    end;
+  end else
+    Result := True;
+end;
 
 (* End of file *)
