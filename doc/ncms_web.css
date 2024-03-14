@@ -1,0 +1,36 @@
+
+body {
+	background-color: #eee;
+	text-align: center;
+}
+
+table {
+  display: table;
+  border: 1px solid;
+  border-collapse: separate;
+  border-spacing: 2px;
+  border-color: gray;
+  width: 400px;
+  margin-top: 20px;
+  margin-left: auto;
+  margin-right: auto;
+  background-color: #ccc;
+  box-shadow: 10px 10px;
+}
+
+caption {
+	font-size: 1.25em;
+	font-weight: bold;
+}
+
+td {
+	border: 1px solid;
+	text-align: center;
+}
+
+iframe {
+	border: 1px solid;
+	box-shadow: 10px 10px;
+	width: 400px;
+	height: 400px;
+}
