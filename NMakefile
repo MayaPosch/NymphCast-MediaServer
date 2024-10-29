@@ -203,10 +203,10 @@ LIB_FOLDER  = lib/$(LIB_ARCH)/$(LIB_CONFIG)			# e.g.: lib\x86_32-w64-msvc\Releas
 OBJ_FOLDER  = obj/$(LIB_ARCH)/$(LIB_CONFIG)			# e.g.: obj\x86_32-w64-msvc\Release
 
 LIB_INCLUDE = \
-	-I $(SRC_FOLDER) \
-	-I $(LIBNYMPHCAST_ROOT)/include \
-	-I $(NYMPHRPC_ROOT)/include \
-	-I $(POCO_ROOT)/include
+	-I "$(SRC_FOLDER)" \
+	-I "$(LIBNYMPHCAST_ROOT)/include" \
+	-I "$(NYMPHRPC_ROOT)/include" \
+	-I "$(POCO_ROOT)/include"
 
 LIB_LIBS = \
 	NymphCast$(LIB_LNKCRT_MT).lib \
@@ -219,15 +219,15 @@ LIB_LIBS = \
 	iphlpapi.lib
 
 LIB_DLLS = \
-	$(POCO_ROOT)/bin/libexpat.dll \
-	$(POCO_ROOT)/bin/libpng16.dll \
-	$(POCO_ROOT)/bin/pcre.dll \
-	$(POCO_ROOT)/bin/PocoFoundation.dll \
-	$(POCO_ROOT)/bin/PocoJSON.dll \
-	$(POCO_ROOT)/bin/PocoNet.dll \
-	$(POCO_ROOT)/bin/PocoUtil.dll \
-	$(POCO_ROOT)/bin/PocoXML.dll \
-	$(POCO_ROOT)/bin/zlib1.dll
+	"$(POCO_ROOT)/bin/libexpat.dll" \
+	"$(POCO_ROOT)/bin/libpng16.dll" \
+	"$(POCO_ROOT)/bin/pcre.dll" \
+	"$(POCO_ROOT)/bin/PocoFoundation.dll" \
+	"$(POCO_ROOT)/bin/PocoJSON.dll" \
+	"$(POCO_ROOT)/bin/PocoNet.dll" \
+	"$(POCO_ROOT)/bin/PocoUtil.dll" \
+	"$(POCO_ROOT)/bin/PocoXML.dll" \
+	"$(POCO_ROOT)/bin/zlib1.dll"
 
 !if $(LIB_STATIC) != 0
 LIB_DEFS_STATIC = -DPOCO_STATIC
@@ -261,11 +261,11 @@ LIB_SDKUCRTPATH = $(WINDOWSSDKDIR)LIB\$(WINDOWSSDKLIBVERSION)ucrt\$(LNK_MACHINE)
 # Create targets:
 
 LIB_SOURCES_DIR = \
-	$(SRC_FOLDER)/bytebauble.cpp \
-	$(SRC_FOLDER)/config_parser.cpp \
-	$(SRC_FOLDER)/mimetype.cpp \
-	$(SRC_FOLDER)/NymphCastMediaServer.cpp \
-	$(SRC_FOLDER)/sarge.cpp
+	"$(SRC_FOLDER)/bytebauble.cpp" \
+	"$(SRC_FOLDER)/config_parser.cpp" \
+	"$(SRC_FOLDER)/mimetype.cpp" \
+	"$(SRC_FOLDER)/NymphCastMediaServer.cpp" \
+	"$(SRC_FOLDER)/sarge.cpp"
 
 # Two steps:
 
@@ -297,6 +297,8 @@ LIB_OBJECTS_DIR = $(LIB_OBJECTS_TMP:src/=obj/x86_64-w64-msvc/Release/)
 #
 
 all: print-configuration prg
+
+# Quote echo text to keep alignment:
 
 print-configuration:
 	@echo.
