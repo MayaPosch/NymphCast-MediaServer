@@ -1,2 +1,2 @@
 
-VERSION = v0.1-release.20220408
+VERSION = v0.2-alpha0.20241208

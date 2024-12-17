@@ -35,16 +35,20 @@ VERSIONINFO = -D__VERSION="\"$(VERSION)\""
 OUTPUT := nymphcast_mediaserver
 INCLUDE := -Isrc
 LIB := -lnymphcast -lnymphrpc -lPocoNet -lPocoUtil -lPocoFoundation -lPocoJSON -lstdc++fs
-CFLAGS := $(INCLUDE) -g3 -std=c++17 $(VERSIONINFO)
+CXXFLAGS := $(INCLUDE) -g3 -std=c++17 $(VERSIONINFO)
 
 # Check for MinGW and patch up POCO
 # The OS variable is only set on Windows.
 ifdef OS
-	CFLAGS := $(CFLAGS) -U__STRICT_ANSI__
+	#CFLAGS := $(CFLAGS)
 	LIB += -lws2_32
 	OUTPUT := $(OUTPUT).exe
 else
 	LIB += -pthread
+endif
+
+ifeq ($(GPP),g++)
+	CXXFLAGS += -fext-numeric-literals
 endif
 
 SOURCES := $(wildcard src/*.cpp)
@@ -57,7 +61,7 @@ makedir:
 	$(MAKEDIR) bin/$(TARGET)
 
 obj/$(TARGET_BIN)%.o: %.cpp
-	$(GPP) -c -o $@ $< $(CFLAGS)
+	$(GPP) -c -o $@ $< $(CXXFLAGS)
 	
 bin/$(TARGET_BIN)$(OUTPUT): $(OBJECTS)
 	$(GPP) -o $@ $(OBJECTS) $(LIB)
