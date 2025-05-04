@@ -125,7 +125,7 @@ NymphMessage* playMedia(int session, NymphMessage* msg, void* data) {
 	
 	// Get the file ID to play back and the list of receivers to play it back on.
 	uint32_t fileId = msg->parameters()[0]->getUint32();
-	std::string filePath = msg->parameters()[1]->getString();
+	std::string filename = msg->parameters()[1]->getString();
 	std::vector<NymphType*>* receivers = msg->parameters()[2]->getArray();
 	
 	// Obtain the file record using its ID.
@@ -138,8 +138,13 @@ NymphMessage* playMedia(int session, NymphMessage* msg, void* data) {
 	
 	MediaFile& mf = mediaFiles[fileId];
 	
-	// TODO: Compare the paths of the fileId in our file list with the provided file path.
-	//if (filePath == mf.
+	// TODO: Compare the name of the fileId in our file list with the provided filename.
+	if (filename != mf.filename) {
+		// Mismatch, send back outdated client list response.
+		returnMsg->setResultValue(new NymphType((uint8_t) 1));
+		msg->discard();
+		return returnMsg;
+	}
 	
 	// Connect to first receiver in the list, then send the remaining receivers as slave receivers.
 	if (receivers->empty()) {
@@ -545,10 +550,10 @@ int main(int argc, char** argv) {
 	NymphMethod getFileListFunction("getFileList", parameters, NYMPH_ARRAY, getFileList);
 	NymphRemoteClient::registerMethod("getFileList", getFileListFunction);
 	
-	// uint8 playMedia(uint32 id, uint32 version, array receivers)
+	// uint8 playMedia(uint32 id, string filename, array receivers)
 	parameters.clear();
 	parameters.push_back(NYMPH_UINT32);
-	parameters.push_back(NYMPH_UINT32);
+	parameters.push_back(NYMPH_STRING);
 	parameters.push_back(NYMPH_ARRAY);
 	NymphMethod playMediaFunction("playMedia", parameters, NYMPH_UINT8, playMedia);
 	NymphRemoteClient::registerMethod("playMedia", playMediaFunction);
