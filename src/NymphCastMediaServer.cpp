@@ -15,63 +15,38 @@
 	2020/12/08, Maya Posch
 */
 
+#include "types.h"
 
 #include <nymph/nymph.h>
 #include <nymphcast_client.h>
 
 #include "config_parser.h"
-#include "INIReader.h"
 #include "sarge.h"
 #include "nyansd.h"
 #include "mimetype.h"
 
 #include <Poco/Condition.h>
 #include <Poco/Thread.h>
-#include <Poco/StringTokenizer.h>
-#include <Poco/DirectoryWatcher.h>
-#include <Poco/Delegate.h>
 using namespace Poco;
 
 #include <map>
-#include <vector>
 #include <csignal>
 #include <fstream>
 #include <mutex>
 #include <filesystem> 		// C++17
 namespace fs = std::filesystem;
 
+
 // Types:
-// 0	Audio
-// 1	Video
-// 2	Image
-// 3	Playlist
-struct MediaFile {
+// 0	Folder
+// 1	File
+/* struct MediaFolderEntry {
 	std::string section;
-	std::string filename;
-	uint8_t type;
-	fs::path path;
-};
-
-
-struct Game {
-	std::string name;
-};
-
-
-struct Save {
-	std::string name;
-};
-
-
-struct GameSystem {
-	std::string name;		// Short name is also folder name.
-	std::string long_name;
-	std::string extensions;
-	std::string launch_cmd;
-	std::string theme;
-	std::vector<Game> games;
-	std::vector<Save> saves;
-};
+	std::string path;	// Full folder path.
+	uint32_t id;
+	std::vector<MediaFolder> folders;
+	std::vector<MediaFile*> files;
+}; */
 
 
 struct RemoteServerStatus {
@@ -87,6 +62,12 @@ struct RemoteServerStatus {
 Condition gCon;
 Mutex gMutex;
 std::vector<MediaFile> mediaFiles;
+std::vector<NymphType*>* tArr = 0;
+bool mediaFilesCurrent = false;
+/* std::vector<MediaFolder> audioFolders;
+std::vector<MediaFolder> videoFolders;
+std::vector<MediaFolder> imageFolders;
+std::vector<MediaFolder> playlistFolders; */
 std::vector<GameSystem> gameSystems;
 static NymphCastClient client;
 uint32_t handle = 0;
@@ -107,33 +88,44 @@ void signal_handler(int signal) {
 NymphMessage* getFileList(int session, NymphMessage* msg, void* data) {
 	NymphMessage* returnMsg = msg->getReplyMessage();
 	
-	// Copy values from the media file array into the new array.
-	std::vector<NymphType*>* tArr = new std::vector<NymphType*>();
-	for (uint32_t i = 0; i < mediaFiles.size(); ++i) {
-		std::map<std::string, NymphPair>* pairs = new std::map<std::string, NymphPair>;
+	if (!mediaFilesCurrent) {
+		// We need to update the serialised list of media files.
+		// First check whether we need to delete an old list.
+		if (tArr != 0) { delete tArr; tArr = 0; }
 		
-		NymphPair pair;
-		std::string* key = new std::string("id");
-		pair.key = new NymphType(key, true);
-		pair.value = new NymphType(i);
-		pairs->insert(std::pair<std::string, NymphPair>(*key, pair));
-	
-		key = new std::string("section");
-		pair.key = new NymphType(key, true);
-		pair.value = new NymphType(&mediaFiles[i].section);
-		pairs->insert(std::pair<std::string, NymphPair>(*key, pair));
+		// Copy values from the media file array into the new array.
+		tArr = new std::vector<NymphType*>();
+		for (uint32_t i = 0; i < mediaFiles.size(); ++i) {
+			std::map<std::string, NymphPair>* pairs = new std::map<std::string, NymphPair>;
+			
+			NymphPair pair;
+			std::string* key = new std::string("id");
+			pair.key = new NymphType(key, true);
+			pair.value = new NymphType(i);
+			pairs->insert(std::pair<std::string, NymphPair>(*key, pair));
 		
-		key = new std::string("filename");
-		pair.key = new NymphType(key, true);
-		pair.value = new NymphType(&mediaFiles[i].filename);
-		pairs->insert(std::pair<std::string, NymphPair>(*key, pair));
-		
-		key = new std::string("type");
-		pair.key = new NymphType(key, true);
-		pair.value = new NymphType(mediaFiles[i].type);
-		pairs->insert(std::pair<std::string, NymphPair>(*key, pair));
-		
-		tArr->push_back(new NymphType(pairs, true));
+			key = new std::string("section");
+			pair.key = new NymphType(key, true);
+			pair.value = new NymphType(&mediaFiles[i].section);
+			pairs->insert(std::pair<std::string, NymphPair>(*key, pair));
+			
+			key = new std::string("filename");
+			pair.key = new NymphType(key, true);
+			pair.value = new NymphType(&mediaFiles[i].filename);
+			pairs->insert(std::pair<std::string, NymphPair>(*key, pair));
+			
+			key = new std::string("rel_path");
+			pair.key = new NymphType(key, true);
+			pair.value = new NymphType(&mediaFiles[i].rel_path);
+			pairs->insert(std::pair<std::string, NymphPair>(*key, pair));
+			
+			key = new std::string("type");
+			pair.key = new NymphType(key, true);
+			pair.value = new NymphType(mediaFiles[i].type);
+			pairs->insert(std::pair<std::string, NymphPair>(*key, pair));
+			
+			tArr->push_back(new NymphType(pairs, true));
+		}
 	}
 	
 	returnMsg->setResultValue(new NymphType(tArr, true));
@@ -142,24 +134,28 @@ NymphMessage* getFileList(int session, NymphMessage* msg, void* data) {
 }
 
 
-// uint8 playMedia(uint32 id, array receivers)
-// Returns: 0 on success. 1 on error.
+// uint8 playMedia(uint32 id, string path, array receivers)
+// Returns: 0 on success. 1 on outdated client list, 2 on error.
 NymphMessage* playMedia(int session, NymphMessage* msg, void* data) {
 	NymphMessage* returnMsg = msg->getReplyMessage();
 	
 	// Get the file ID to play back and the list of receivers to play it back on.
 	uint32_t fileId = msg->parameters()[0]->getUint32();
-	std::vector<NymphType*>* receivers = msg->parameters()[1]->getArray();
+	std::string filePath = msg->parameters()[1]->getString();
+	std::vector<NymphType*>* receivers = msg->parameters()[2]->getArray();
 	
 	// Obtain the file record using its ID.
 	if (fileId > mediaFiles.size()) {
 		// Invalid file ID.
-		returnMsg->setResultValue(new NymphType((uint8_t) 1));
+		returnMsg->setResultValue(new NymphType((uint8_t) 2));
 		msg->discard();
 		return returnMsg;
 	}
 	
 	MediaFile& mf = mediaFiles[fileId];
+	
+	// TODO: Compare the paths of the fileId in our file list with the provided file path.
+	//if (filePath == mf.
 	
 	// Connect to first receiver in the list, then send the remaining receivers as slave receivers.
 	if (receivers->empty()) {
@@ -455,6 +451,8 @@ void onFileAdded(const Poco::DirectoryWatcher::DirectoryEvent& addEvent) {
 	std::cout << "Added: " << addEvent.item.path();
 	
 	// TODO: Handle.
+	// Update list version to indicate change. 
+	
 }
 
 
@@ -471,7 +469,14 @@ void onFileRemoved(const Poco::DirectoryWatcher::DirectoryEvent& removeEvent) {
 	std::cout << "Removed: " << removeEvent.item.path();
 	
 	// TODO: Handle.
+	// Update list version to indicate change. 
+	
 }
+
+
+// Function declarations
+bool scan_mediafiles(std::string folders_file);
+bool scan_gamesystems(std::string gameFolder);
 
 
 int main(int argc, char** argv) {
@@ -496,9 +501,6 @@ int main(int argc, char** argv) {
 		return 0;
 	}
 	
-	std::string config_file;
-	sarge.getFlag("configuration", config_file);
-	
 	std::string folders_file = "folders.ini";
 	if (!sarge.getFlag("folders", folders_file)) {
 		std::cerr << "Folder list file argument is required." << std::endl;
@@ -507,188 +509,39 @@ int main(int argc, char** argv) {
 	}
 	
 	// Read in the configuration.
-	bool nc_gamesync = false;
+	std::string config_file;
 	std::string gameFolder;
-	INIReader config(config_file);
-	if (config.ParseError() != 0) {
-		/*std::cerr << "Unable to load configuration file: " << config_file << std::endl;
-		return 1;*/
-		nc_gamesync = false;
-	}
-	else {
-		// Get 'games' section and read the path.
-		std::set<std::string> cfg_sections = config.Sections();
-		std::cout << "Found " << cfg_sections.size() << " sections in the config file." << std::endl;
-		nc_gamesync = config.GetBoolean("games", "enable", true);
-		gameFolder = config.Get("games", "path", "games");
+	bool nc_gamesync = false;
+	if (sarge.exists("configuration")) {
+		sarge.getFlag("configuration", config_file);
+	
+		INIReader config(config_file);
+		if (config.ParseError() != 0) {
+			/*std::cerr << "Unable to load configuration file: " << config_file << std::endl;
+			return 1;*/
+			nc_gamesync = false;
+		}
+		else {
+			// Get 'games' section and read the path.
+			std::set<std::string> cfg_sections = config.Sections();
+			std::cout << "Found " << cfg_sections.size() << " sections in the config file." << std::endl;
+			nc_gamesync = config.GetBoolean("games", "enable", true);
+			gameFolder = config.Get("games", "path", "games");
+		}
 	}
 	
 	if (nc_gamesync) {
-		// Check that path is a valid directory.
-		fs::path gamedir = gameFolder;
-		if (!fs::is_directory(gamedir)) {
-			std::cout << "Path is not a valid directory: " << gameFolder << ". Skipping." << std::endl;
-		}
-		else {
-			// TODO: Scan the available systems in the 'games' folder.
-			// Use the 'system.ini' file in each sub-folder to compile a list of available systems
-			// and their games.
-			// Start by getting the list of sub-folders.
-			
-			
-			// Attempt to open the 'system.ini' file per sub-folder. If found, read in
-			// system details and scan the 'games' sub-sub-folder for game filenames to add.
-		
-			// First iterate through the directory to filter out the game folders.
-			for (fs::recursive_directory_iterator next(gamedir); next != fs::end(next); next++) {
-				fs::path sysc = next->path();
-				sysc /= "system.ini";
-				fs::path sysdir = next->path();
-				fs::path romdir = sysdir;
-				romdir /= "roms";
-				fs::path savedir = sysdir;
-				savedir /= "saves";
-				if (!fs::is_regular_file(sysc)) {
-					continue; 
-				}
-				
-				// Open the INI file and process it.
-				INIReader syscfg(sysc.string());
-				
-				GameSystem gs;
-				gs.name = syscfg.Get("", "name", "");
-				gs.long_name = syscfg.Get("", "long_name", "");
-				gs.extensions = syscfg.Get("", "extensions", "");
-				gs.launch_cmd = syscfg.Get("", "launch_cmd", "");
-				gs.theme = syscfg.Get("", "theme", "");
-				
-				if (gs.name.empty() || gs.long_name.empty() || gs.launch_cmd.empty() || gs.theme.empty()) {
-					// Issue with the INI file. Report and skip this folder.
-					std::cout << "Missing value in system.ini file. Skipping folder..." << std::endl;
-					continue;
-				}
-				
-				// Unpack extensions and scan for ROMs.
-				Poco::StringTokenizer tokens(sysc.string(), ",", Poco::StringTokenizer::TOK_IGNORE_EMPTY | Poco::StringTokenizer::TOK_TRIM);
-				uint32_t tc = tokens.count();
-				if (tc < 1) {
-					std::cerr << "Zero system extensions found. Skipping system..." << std::endl;
-					continue;
-				}
-				
-				if (!fs::is_directory(romdir)) {
-					std::cout << "Path is not a valid directory: " << romdir << ". Skipping." << std::endl;
-					continue;
-				}
-				
-				// Iterate through the directory to filter out the media files.
-				for (fs::recursive_directory_iterator rd(romdir); rd != fs::end(rd); rd++) {
-					fs::path fe = rd->path();
-					//std::cout << "Checking path: " << fe.string() << std::endl;
-					if (!fs::is_regular_file(fe)) {
-						continue; 
-					}
-					
-					std::string ext = fe.extension().string();
-					ext.erase(0, 1);	// Remove leading '.' character.
-					
-					// Check we have this extension in the filter.
-					if (tokens.has(ext)) {
-						// Add to list.
-						Game g;
-						g.name = fe.filename().string();
-						gs.games.push_back(g);
-					}
-				}
-				
-				// Scan for any save files.
-				for (fs::recursive_directory_iterator dit(savedir); dit != fs::end(dit); dit++) {
-					fs::path fe = dit->path();
-					if (!fs::is_regular_file(fe)) {
-						continue;
-					}
-					
-					// TODO: need to filter save file extensions too?
-					// Save files with libretro are apparently all *.srm extensions.
-					std::string ext = fe.extension().string();
-					ext.erase(0, 1);	// Remove leading '.' character.
-					
-					// Check we have this extension in the filter.
-					//if (tokens.has(ext)) {
-					if (ext == "srm") {
-						// Add to list.
-						Save s;
-						s.name = fe.filename().string();
-						gs.saves.push_back(s);
-					}
-				}
-			
-				gameSystems.push_back(gs);
-			}
+		if (!scan_gamesystems(gameFolder)) {
+			// TODO: handle error.
+			std::cerr << "Scanning for game systems failed." << std::endl;
+			return 1;
 		}
 	}
 	
-	// Obtain the list of directories to scan.
-	std::cout << "Scanning directories..." << std::endl;
-	INIReader folderList(folders_file);
-	if (folderList.ParseError() != 0) {
-		std::cerr << "Failed to parse the '" << folders_file << "' file." << std::endl;
+	if (!scan_mediafiles(folders_file)) {
+		// TODO: handle error.
+		std::cerr << "Scanning for media files failed." << std::endl;
 		return 1;
-	}
-	
-	std::set<std::string> sections = folderList.Sections();
-	std::cout << "Found " << sections.size() << " sections in the folder list." << std::endl;
-	
-	uint32_t index = 0;
-	std::set<std::string>::const_iterator it;
-	for (it = sections.cbegin(); it != sections.cend(); ++it) {
-		// Read out each 'path' string and add the files in the folder (if it exists) to the
-		// central list.
-		std::cout << "Section: " << *it << std::endl;
-		std::string path = folderList.Get(*it, "path", "");
-		if (path.empty()) {
-			std::cerr << "Path was missing or empty for entry: " << *it << std::endl;
-			continue;
-		}
-		
-		// Check that path is a valid directory.
-		fs::path dir = path;
-		if (!fs::is_directory(dir)) {
-			std::cout << "Path is not a valid directory: " << path << ". Skipping." << std::endl;
-			continue;
-		}
-		
-		// Iterate through the directory to filter out the media files.
-		for (fs::recursive_directory_iterator next(dir); next != fs::end(next); next++) {
-			fs::path fe = next->path();
-			//std::cout << "Checking path: " << fe.string() << std::endl;
-			if (!fs::is_regular_file(fe)) {
-				continue; 
-			}
-			
-			std::string ext = fe.extension().string();
-			ext.erase(0, 1);	// Remove leading '.' character.
-			//std::cout << "Checking extension: " << ext << std::endl;
-			MediaFile mf;
-			uint8_t type;
-			if (MimeType::hasExtension(ext, type)) {
-				// Add to media file list.
-				std::cout << "Adding file: " << fe << std::endl;
-				
-				mf.path = fe;
-				mf.section = *it;
-				mf.filename = fe.filename().string();
-				mf.type = type;
-				mediaFiles.push_back(mf);
-			}
-		}
-	
-		// Register a DirectoryWatcher for the media folder.
-		Poco::DirectoryWatcher* dw = new Poco::DirectoryWatcher(dir.string());
-		dw->itemModified		+= Poco::delegate(&onFileModified);
-		dw->itemAdded		+= Poco::delegate(&onFileAdded);
-		dw->itemRemoved		+= Poco::delegate(&onFileRemoved);
-		dirwatchers.push_back(dw);
 	}
 	
 	// Initialise the server.
@@ -708,8 +561,9 @@ int main(int argc, char** argv) {
 	NymphMethod getFileListFunction("getFileList", parameters, NYMPH_ARRAY, getFileList);
 	NymphRemoteClient::registerMethod("getFileList", getFileListFunction);
 	
-	// uint8 playMedia(uint32 id, array receivers)
+	// uint8 playMedia(uint32 id, uint32 version, array receivers)
 	parameters.clear();
+	parameters.push_back(NYMPH_UINT32);
 	parameters.push_back(NYMPH_UINT32);
 	parameters.push_back(NYMPH_ARRAY);
 	NymphMethod playMediaFunction("playMedia", parameters, NYMPH_UINT8, playMedia);
@@ -742,6 +596,9 @@ int main(int argc, char** argv) {
 	// TODO: Announce the NCMS on the network if game synchronisation is enabled.
 	// TODO: Handle synchronisation with other NCMS instances if found.
 	// TODO: Perform regular polling of remote file/NCMS content changes, as needed.
+	
+	
+	// TODO: Start webserver with dashboard & file management functionality.
 	
 	
 	// Wait for the condition to be signalled.
