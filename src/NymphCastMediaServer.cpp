@@ -37,18 +37,6 @@ using namespace Poco;
 namespace fs = std::filesystem;
 
 
-// Types:
-// 0	Folder
-// 1	File
-/* struct MediaFolderEntry {
-	std::string section;
-	std::string path;	// Full folder path.
-	uint32_t id;
-	std::vector<MediaFolder> folders;
-	std::vector<MediaFile*> files;
-}; */
-
-
 struct RemoteServerStatus {
 	NymphPlaybackStatus status;
 	bool init = false;	// True after first connection update.
@@ -64,10 +52,6 @@ Mutex gMutex;
 std::vector<MediaFile> mediaFiles;
 std::vector<NymphType*>* tArr = 0;
 bool mediaFilesCurrent = false;
-/* std::vector<MediaFolder> audioFolders;
-std::vector<MediaFolder> videoFolders;
-std::vector<MediaFolder> imageFolders;
-std::vector<MediaFolder> playlistFolders; */
 std::vector<GameSystem> gameSystems;
 static NymphCastClient client;
 uint32_t handle = 0;
