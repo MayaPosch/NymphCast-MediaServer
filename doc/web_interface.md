@@ -7,11 +7,15 @@ This document describes the web interface provided by the NymphCast MediaServer 
 Upon opening the web interface in a supported browser, the dashboard is displayed. This provides status information about the local system, statistics on used and free disk space, configured media shares, etc.
 
 
-## File Manager ##
+## Share Manager ##
 
-The file manager can be accessed from the dashboard. It allows for the browsing of existing files in the configured folders, as well as the adding, editing (renaming, etc.), downloading & removal of files and folders. 
+The share manager can be accessed from the dashboard. 
 
-Additional shares can also be added here, and existing shares edited and removed.
+Features:
+
+- the browsing of existing files in the configured folders.
+- Adding existing folders as shares, or removing them.
+- Refreshing the shared file list.
 
 
 ## Authentication ##
