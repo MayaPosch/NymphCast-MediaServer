@@ -1,0 +1,42 @@
+NymphCast Media Server
+
+Release Protocol for: v0.2-alpha 0
+--------------------------
+
+> Overview
+
+This document contains the list of features that have to be developed and tested prior to release.
+
+Completing each item to the desired level of stability (beta, alpha, experimental) is an essential part of this process.
+
+
+---
+> 1. Features
+
+1. Rescanning of shared media when files are added/removed (from web UI?)
+2. HTTP server & web-based UI for content management (add/remove files/folders).
+3. 
+
+
+--- 
+
+> 1.1. Rescan shared media
+
+- When content is changed within the shared folders (files/folders added or changed), rescan.
+- This can be done in two ways:
+	1. Trigger manually in the web UI.
+	2. When a change in a watched (top) folder is detected.
+- Tracking of shared media list revision:
+	- A client can have an outdated list.
+	- Clients send both the numeric file ID and the filename.
+	- The filename is used for validation & fallback if the list is outdated.
+- 
+
+
+---
+> 1.2. HTTP Server & Web UI
+
+- HTTP server on port ??
+- NCMS-side handlers for file uploads, deleting, new folders, deleting/renaming folders, etc.
+- System information overview (free space, etc.).
+- Hard limit traversing above shared root folders on filesystem.
