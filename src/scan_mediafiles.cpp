@@ -65,13 +65,14 @@ bool scan_mediafiles(std::string folders_file) {
 				std::cout << "Adding file: " << fe << std::endl;
 				
 				mf.path = fe;
-				//mf.rel_path = fe - dir; // FIXME: implement
-				mf.rel_path = fe.string();
+				mf.rel_path = fe.parent_path().string();
 				mf.rel_path.erase(0, dir.string().size());
 				mf.section = *it;
 				mf.filename = fe.filename().string();
 				mf.type = type;
 				mediaFiles.push_back(mf);
+				
+				std::cout << "Relative path: " << mf.rel_path << std::endl;
 				
 				// Add to serialised list.
 				// This is the data we will be sending to a client as the file list. It contains
