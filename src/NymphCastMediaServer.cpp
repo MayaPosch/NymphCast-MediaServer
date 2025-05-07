@@ -72,10 +72,10 @@ void signal_handler(int signal) {
 NymphMessage* getFileList(int session, NymphMessage* msg, void* data) {
 	NymphMessage* returnMsg = msg->getReplyMessage();
 	
-	if (!mediaFilesCurrent) {
+	//if (!mediaFilesCurrent) {
 		// We need to update the serialised list of media files.
 		// First check whether we need to delete an old list.
-		if (tArr != 0) { delete tArr; tArr = 0; }
+		//if (tArr != 0) { delete tArr; tArr = 0; }
 		
 		// Copy values from the media file array into the new array.
 		tArr = new std::vector<NymphType*>();
@@ -110,7 +110,9 @@ NymphMessage* getFileList(int session, NymphMessage* msg, void* data) {
 			
 			tArr->push_back(new NymphType(pairs, true));
 		}
-	}
+		
+		//mediaFilesCurrent = true;
+	//}
 	
 	returnMsg->setResultValue(new NymphType(tArr, true));
 	msg->discard();
