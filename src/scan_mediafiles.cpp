@@ -65,7 +65,7 @@ bool scan_mediafiles(std::string folders_file) {
 				std::cout << "Adding file: " << fe << std::endl;
 				
 				mf.path = fe;
-				mf.rel_path = fe.parent_path().string();
+				mf.rel_path = fe.parent_path().generic_string();
 				mf.rel_path.erase(0, dir.string().size());
 				mf.section = *it;
 				mf.filename = fe.filename().string();
